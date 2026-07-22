@@ -1,0 +1,22 @@
+# OpenTofu / Terraform
+**/.terraform/*
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Platform factory: real inputs and generated artifacts stay local.
+# Only *.example templates are tracked.
+tofu/live/**/*.tfvars
+tofu/live/**/backend.hcl
+tofu/live/**/kubeconfig
+tofu/**/.gen/
+!tofu/**/*.tfvars.example
+
+# OS
+.DS_Store
