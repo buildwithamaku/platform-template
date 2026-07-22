@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Rendered per-node by OpenTofu (templatefile). Do not edit on the server.
+#   ${...} tokens are substituted by OpenTofu; $VARS are expanded by bash at runtime.
+set -euo pipefail
+
+command -v curl >/dev/null 2>&1 || { apt-get update && apt-get install -y curl; }
+
+NODE_IP="${node_ip}"
+
+# The private NIC gets its IP a moment after boot; wait for it, then find its name
+# so we can pin flannel + the node IP to the private network.
+for _ in $(seq 1 60); do
+  ip -o -4 addr show | grep -qw "$NODE_IP" && break
+  sleep 2
+done
+PRIVATE_IFACE=$(ip -o -4 addr show | awk -v ip="$NODE_IP" '$4 ~ "^"ip"/" {print $2; exit}')
+
+mkdir -p /etc/rancher/k3s
+cat > /etc/rancher/k3s/config.yaml <<EOF
+token: "${k3s_token}"
+node-ip: "$NODE_IP"
+flannel-iface: "$PRIVATE_IFACE"
+write-kubeconfig-mode: "0644"
+tls-san:
+  - "${api_lb_ip}"
+  - "$NODE_IP"
+disable:
+  - traefik
+  - servicelb
+%{ if is_init ~}
+cluster-init: true
+%{ else ~}
+server: "https://${api_lb_ip}:6443"
+%{ endif ~}
+EOF
+
+%{ if !is_init ~}
+# Wait until the first server's API is reachable through the LB before joining.
+until timeout 2 bash -c "echo > /dev/tcp/${api_lb_ip}/6443" 2>/dev/null; do
+  sleep 4
+done
+%{ endif ~}
+
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server

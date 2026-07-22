@@ -1,0 +1,49 @@
+name: OpenTofu
+
+on:
+  pull_request:
+    paths: ["tofu/**", ".github/workflows/tofu.yaml"]
+  workflow_dispatch: {}
+
+env:
+  TOFU_VERSION: "1.8.5"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Format, validate & security
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: ${{ env.TOFU_VERSION }}
+
+      - name: tofu fmt
+        run: tofu fmt -check -recursive tofu/
+
+      # Validate each live root without touching the cloud or remote state.
+      - name: tofu validate (staging)
+        working-directory: tofu/live/staging
+        run: |
+          tofu init -backend=false -input=false
+          tofu validate
+
+      - name: tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: tofu/
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: tofu/
+          framework: terraform
+
+# Plan-on-PR and gated apply-on-dispatch are deliberately NOT wired yet: applying
+# needs cloud + state credentials AND network reachability to the k3s API to fetch
+# the kubeconfig. Until Tailscale lands (Phase 3), Phase 1 applies run from an
+# operator laptop (see tofu/README.md). CI here is fmt + validate + security only.
