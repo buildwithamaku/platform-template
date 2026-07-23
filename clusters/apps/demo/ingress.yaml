@@ -1,0 +1,30 @@
+# Phase-3 acceptance target: commit this Ingress -> external-dns creates the
+# DNS record (-> ingress LB IP), cert-manager issues a cert via DNS-01, and
+# https://test.amakusolutions.com serves with a green lock.
+#
+# Uses the LE STAGING issuer first (untrusted cert, but no rate limits) to prove
+# the flow. Switch cluster-issuer to letsencrypt-prod for a real green lock.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo
+  namespace: demo
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - test.amakusolutions.com
+      secretName: demo-tls
+  rules:
+    - host: test.amakusolutions.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: demo
+                port:
+                  number: 80

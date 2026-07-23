@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: demo
+    app.kubernetes.io/part-of: refclient
+spec:
+  selector:
+    app.kubernetes.io/name: demo
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
