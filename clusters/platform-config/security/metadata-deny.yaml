@@ -1,0 +1,54 @@
+# Block pod egress to the cloud metadata endpoint (169.254.169.254) in every
+# workload namespace. On Hetzner the node's user_data (which carries the
+# full-power hcloud token, see the tofu k3s module) is readable via that IP, so
+# a compromised app pod could otherwise lift a project-wide credential.
+#
+# Pattern: allow all egress EXCEPT the metadata IP. Intra-cluster traffic, DNS,
+# and the internet all fall under 0.0.0.0/0 and stay allowed; only metadata is
+# carved out. k3s enforces NetworkPolicy (kube-router), so this is effective.
+#
+# Add one block per new app namespace (this is the per-namespace convention).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-node-metadata
+  namespace: demo
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-node-metadata
+  namespace: cache
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-node-metadata
+  namespace: data
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32

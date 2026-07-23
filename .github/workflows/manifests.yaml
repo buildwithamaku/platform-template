@@ -1,0 +1,36 @@
+# Validate the Plane-2 manifests (clusters/) on every change — schema-checks the
+# growing GitOps tree against Kubernetes + CRD schemas so a typo or a bad
+# apiVersion is caught in CI, not at ArgoCD sync time.
+name: manifests
+
+on:
+  pull_request:
+    paths: ["clusters/**", ".github/workflows/manifests.yaml"]
+  push:
+    branches: [main]
+    paths: ["clusters/**"]
+
+jobs:
+  kubeconform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | tar -xz kubeconform
+          sudo install kubeconform /usr/local/bin/
+
+      - name: Validate manifests (k8s + CRD schemas)
+        run: |
+          # CRD schemas (ArgoCD, cert-manager, external-secrets, CNPG, ...) come
+          # from the datreeio CRDs-catalog; -ignore-missing-schemas tolerates any
+          # kind not yet in the catalog rather than failing the build.
+          kubeconform \
+            -strict -summary -verbose \
+            -kubernetes-version 1.31.4 \
+            -ignore-missing-schemas \
+            -schema-location default \
+            -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+            clusters/
