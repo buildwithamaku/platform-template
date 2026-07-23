@@ -27,8 +27,8 @@ variable "server_count" {
 
 variable "server_type" {
   type        = string
-  default     = "cx32"
-  description = "Hetzner server type. cx22 (2vCPU/4GB) for staging, cx32 (4vCPU/8GB) for prod, cax* for ARM."
+  default     = "cpx32"
+  description = "Hetzner server type. AMD CPX line (cpx22 2vCPU/4GB, cpx32 4vCPU/8GB) works in all EU locations incl. nbg1; the Intel CX line is NOT sold in nbg1. cax* for ARM (needs an arm64 image)."
 }
 
 variable "image" {
