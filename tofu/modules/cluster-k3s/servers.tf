@@ -35,11 +35,15 @@ resource "hcloud_server" "nodes" {
   }
 
   user_data = templatefile("${path.module}/templates/k3s-install.sh.tftpl", {
-    node_ip     = cidrhost(var.subnet_cidr, 10 + count.index)
-    k3s_token   = random_password.k3s_token.result
-    k3s_version = var.k3s_version
-    api_lb_ip   = hcloud_load_balancer.api.ipv4
-    is_init     = count.index == 0
+    node_ip            = cidrhost(var.subnet_cidr, 10 + count.index)
+    k3s_token          = random_password.k3s_token.result
+    k3s_version        = var.k3s_version
+    api_lb_ip          = hcloud_load_balancer.api.ipv4
+    is_init            = count.index == 0
+    install_hcloud_ccm = var.install_hcloud_ccm
+    hcloud_token       = var.hcloud_token
+    hcloud_ccm_version = var.hcloud_ccm_version
+    network_name       = hcloud_network.this.name
   })
 
   depends_on = [hcloud_network_subnet.this]

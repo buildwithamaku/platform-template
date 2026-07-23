@@ -1,6 +1,10 @@
 module "cluster" {
   source = "../../modules/cluster-k3s"
 
+  # Token reaches the module so the init node can plant the `hcloud` Secret that
+  # hcloud-cloud-controller-manager uses (it fulfils the ingress LoadBalancer).
+  hcloud_token = var.hcloud_token
+
   cluster_name = "refclient-staging"
   location     = "nbg1"
 

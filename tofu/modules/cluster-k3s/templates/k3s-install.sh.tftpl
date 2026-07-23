@@ -27,6 +27,14 @@ tls-san:
 disable:
   - traefik
   - servicelb
+%{ if install_hcloud_ccm ~}
+# Run with the external cloud provider so hcloud-cloud-controller-manager owns
+# node init + LoadBalancer provisioning. Every node carries the "uninitialized"
+# taint until the CCM (staged below on the init node) clears it.
+disable-cloud-controller: true
+kubelet-arg:
+  - "cloud-provider=external"
+%{ endif ~}
 %{ if is_init ~}
 cluster-init: true
 %{ else ~}
@@ -39,6 +47,35 @@ EOF
 until timeout 2 bash -c "echo > /dev/tcp/${api_lb_ip}/6443" 2>/dev/null; do
   sleep 4
 done
+%{ endif ~}
+
+%{ if is_init && install_hcloud_ccm ~}
+# Pre-stage hcloud CCM so k3s auto-applies it on first start. Raw manifests (not
+# a k3s HelmChart) on purpose: a helm-install Job would be unschedulable under
+# the "uninitialized" taint, deadlocking the very controller meant to clear it.
+# The CCM Deployment itself tolerates that taint, so it schedules and initializes
+# the nodes.
+#
+# ccm-networks.yaml (network-aware): the `hcloud` Secret carries the private
+# network name, so CCM attaches ingress LoadBalancers to it and targets nodes by
+# PRIVATE IP — matching the Phase-1 API LB and bypassing the public firewall.
+# NOTE (prod hardening): with server_count > 1, CCM's route controller and
+# flannel both touch pod routing; on multi-node prod, disable CCM routes
+# (HCLOUD_NETWORK_ROUTES_ENABLED=false) or switch flannel-backend. Single-node
+# staging has no inter-node routes, so it is unaffected. Validate on apply.
+mkdir -p /var/lib/rancher/k3s/server/manifests
+cat > /var/lib/rancher/k3s/server/manifests/hcloud-ccm-secret.yaml <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hcloud
+  namespace: kube-system
+stringData:
+  token: "${hcloud_token}"
+  network: "${network_name}"
+EOF
+curl -sfL "https://github.com/hetznercloud/hcloud-cloud-controller-manager/releases/download/${hcloud_ccm_version}/ccm-networks.yaml" \
+  -o /var/lib/rancher/k3s/server/manifests/hcloud-ccm.yaml
 %{ endif ~}
 
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server
