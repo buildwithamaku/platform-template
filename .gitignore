@@ -18,5 +18,10 @@ tofu/live/**/kubeconfig
 tofu/**/.gen/
 !tofu/**/*.tfvars.example
 
+# Secrets: local env files with tokens/credentials never get committed.
+.env
+**/.env
+!.env.example
+
 # OS
 .DS_Store
