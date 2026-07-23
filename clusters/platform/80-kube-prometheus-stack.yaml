@@ -1,0 +1,83 @@
+# Metrics + Grafana + Alertmanager (D-08). Wave 8. Grafana is THE single pane:
+# it gets Loki + Tempo as datasources, cross-linked by trace_id (logs->traces)
+# and trace->logs, so the §6.5 2am chain works in one UI. Exemplars on.
+# Grafana exposure is Tailscale-only (D-09, deferred) -> port-forward for now.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 87.19.0
+    helm:
+      values: |
+        crds:
+          enabled: true
+        prometheus:
+          prometheusSpec:
+            retention: 3d
+            enableFeatures: ["exemplar-storage"]
+            # Scrape ServiceMonitors/PodMonitors/Rules from ALL namespaces
+            # (CNPG, ingress-nginx, apps), not just those with the release label.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            probeSelectorNilUsesHelmValues: false
+            resources:
+              requests: { cpu: 100m, memory: 400Mi }
+              limits: { memory: 1Gi }
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests: { cpu: 10m, memory: 32Mi }
+              limits: { memory: 128Mi }
+        grafana:
+          defaultDashboardsTimezone: browser
+          sidecar:
+            dashboards:
+              enabled: true
+              searchNamespace: ALL
+              label: grafana_dashboard
+            datasources:
+              enabled: true
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              uid: loki
+              url: http://loki.monitoring.svc:3100
+              jsonData:
+                derivedFields:
+                  # Pull trace_id out of structured JSON logs and link to Tempo.
+                  - name: TraceID
+                    matcherType: regex
+                    matcherRegex: '"trace_id":"(\w+)"'
+                    datasourceUid: tempo
+                    url: '${__value.raw}'
+            - name: Tempo
+              type: tempo
+              uid: tempo
+              url: http://tempo.monitoring.svc:3200
+              jsonData:
+                tracesToLogsV2:
+                  datasourceUid: loki
+                  filterByTraceID: true
+                serviceMap:
+                  datasourceUid: prometheus
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
