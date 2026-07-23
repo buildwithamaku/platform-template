@@ -5,8 +5,10 @@ module "cluster" {
   location     = "nbg1"
 
   # Prod is HA: 3 servers with embedded-etcd quorum (decision D-02).
+  # NOTE: nbg1 does not offer the Intel CX line — use the AMD CPX equivalent
+  # (cpx32 = 4 vCPU / 8 GB, same specs as cx32). CX types would need fsn1/hel1.
   server_count = 3
-  server_type  = "cx32"
+  server_type  = "cpx32"
 
   ssh_public_keys   = var.ssh_public_keys
   api_allowed_cidrs = var.api_allowed_cidrs
