@@ -1,0 +1,26 @@
+# The §6.5 "5xx SLO burn" page, from demo-api's own metrics. Fires critical when
+# the error ratio exceeds 10% -> Alertmanager slack-pages route -> Slack. From the
+# alert you jump to the app's logs (trace_id) and click through to the trace.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: demo-api
+  namespace: demo
+  labels:
+    app.kubernetes.io/name: demo-api
+spec:
+  groups:
+    - name: demo-api.slo
+      rules:
+        - alert: DemoApiHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{status="500"}[5m]))
+            /
+            sum(rate(http_requests_total[5m])) > 0.10
+          for: 2m
+          labels:
+            severity: critical
+            namespace: demo
+          annotations:
+            summary: demo-api 5xx error rate above 10%
+            description: "demo-api is returning 5xx for >10% of requests over 5m. Check its logs ({app=\"demo-api\"} |= \"error\") and click the trace_id through to Tempo."

@@ -1,0 +1,27 @@
+# Wave 10: the observability demo — a reference §5.4 app that emits correlated
+# logs + traces + metrics, so the full alert->log->trace->span chain has real
+# data. Delete once real apps exist (Phase 6). Git-sourced (pins main).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-demo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/buildwithamaku/platform-template.git
+    targetRevision: main
+    path: clusters/apps/otel-demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
