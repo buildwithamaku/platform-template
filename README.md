@@ -26,8 +26,8 @@ docs/         # plan, runbook
 
 | Phase | What | State |
 |-------|------|-------|
-| 1 | Substrate: `cluster-k3s` (Hetzner) + refclient staging + CI | **in progress** |
-| 2 | GitOps + secrets spine (ArgoCD, ESO/Infisical, Reloader) | not started |
+| 1 | Substrate: `cluster-k3s` (Hetzner) + refclient staging + CI | **done** (apply-verified) |
+| 2 | GitOps + secrets spine (ArgoCD, ESO/Infisical, Reloader) | **in progress** |
 | 3+ | Edge, data, observability, apps, BI, factory extraction | not started |
 
 ## Getting started

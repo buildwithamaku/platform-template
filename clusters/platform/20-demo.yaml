@@ -1,0 +1,27 @@
+# Wave 2: the Phase-2 acceptance target — a dummy Deployment fed by an
+# ExternalSecret, restarted by Reloader on secret change. Delete this Application
+# once real apps (Phase 6) exist; it proves the secret-rotation loop end to end.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: demo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/buildwithamaku/platform-template.git
+    targetRevision: main
+    path: clusters/apps/demo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
