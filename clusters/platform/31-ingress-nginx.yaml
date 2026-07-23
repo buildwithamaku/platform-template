@@ -29,6 +29,10 @@ spec:
               load-balancer.hetzner.cloud/location: nbg1
               load-balancer.hetzner.cloud/use-private-ip: "true"
               load-balancer.hetzner.cloud/uses-proxyprotocol: "false"
+              # Keep private-IP TARGETS (firewall-clean) but exclude the LB's
+              # private IP from the Service status, so external-dns publishes
+              # ONLY the public IP (no dead 10.0.x A record).
+              load-balancer.hetzner.cloud/disable-private-ingress: "true"
           ingressClassResource:
             default: true
   destination:
