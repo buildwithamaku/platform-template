@@ -1,0 +1,27 @@
+# Wave 6: Valkey cache. Git-sourced (pins main — see clusters/README.md).
+# Redis Insight (the GUI) is deferred with Tailscale (D-09) — it must be
+# admin-only, never public ingress.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: valkey
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/buildwithamaku/platform-template.git
+    targetRevision: main
+    path: clusters/apps/valkey
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cache
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

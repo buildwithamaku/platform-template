@@ -29,7 +29,7 @@ docs/         # plan, runbook
 | 1 | Substrate: `cluster-k3s` (Hetzner) + refclient staging + CI | **done** — `apply`-verified |
 | 2 | GitOps + secrets spine (ArgoCD, ESO/Infisical, Reloader) | **done** — acceptance-tested, merged |
 | 3 | Edge + access (ingress-nginx, cert-manager, external-dns) — Tailscale deferred | **done** — green-lock verified on Hetzner |
-| 4 | Data layer (CloudNativePG, Redis) | not started |
+| 4 | Data layer (CloudNativePG + PITR to R2, Valkey cache) | **in progress** |
 | 5 | Observability (kube-prometheus-stack, Loki, Tempo) | not started |
 | 6 | App delivery (Kustomize, reusable CI, promotion flow) | not started |
 | 7 | BI + E2E (Metabase, Playwright) | not started |
