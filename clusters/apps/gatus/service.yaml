@@ -1,0 +1,16 @@
+# Status page UI. Tailscale-only per D-09 (deferred) — reach it via:
+#   kubectl -n monitoring port-forward svc/gatus 8081:8080
+apiVersion: v1
+kind: Service
+metadata:
+  name: gatus
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: gatus
+spec:
+  selector:
+    app.kubernetes.io/name: gatus
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

@@ -1,0 +1,37 @@
+# Gatus config — the status page (§4.3 synthetic checks). Probes endpoints from
+# INSIDE the cluster and serves an uptime UI. PER CLIENT: replace the external
+# endpoints with the client's real URLs (https://test.<domain>, https://api.<domain>).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatus-config
+  namespace: monitoring
+data:
+  config.yaml: |
+    web:
+      port: 8080
+    ui:
+      title: "refclient — Status"
+      header: "refclient status"
+    storage:
+      type: memory
+    endpoints:
+      - name: "demo-api (internal)"
+        group: "internal"
+        url: "http://demo-api.demo.svc:8080/metrics"
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "Cloudflare 1.1.1.1"
+        group: "external"
+        url: "https://1.1.1.1"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+      - name: "GitHub API"
+        group: "external"
+        url: "https://api.github.com"
+        interval: 60s
+        conditions:
+          - "[STATUS] == 200"
+          - "[RESPONSE_TIME] < 2000"
