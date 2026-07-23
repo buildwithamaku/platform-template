@@ -26,9 +26,14 @@ docs/         # plan, runbook
 
 | Phase | What | State |
 |-------|------|-------|
-| 1 | Substrate: `cluster-k3s` (Hetzner) + refclient staging + CI | **done** (apply-verified) |
-| 2 | GitOps + secrets spine (ArgoCD, ESO/Infisical, Reloader) | **in progress** |
-| 3+ | Edge, data, observability, apps, BI, factory extraction | not started |
+| 1 | Substrate: `cluster-k3s` (Hetzner) + refclient staging + CI | **done** — `apply`-verified |
+| 2 | GitOps + secrets spine (ArgoCD, ESO/Infisical, Reloader) | **done** — acceptance-tested, merged |
+| 3 | Edge + access (ingress-nginx, cert-manager, external-dns, Tailscale) | next |
+| 4 | Data layer (CloudNativePG, Redis) | not started |
+| 5 | Observability (kube-prometheus-stack, Loki, Tempo) | not started |
+| 6 | App delivery (Kustomize, reusable CI, promotion flow) | not started |
+| 7 | BI + E2E (Metabase, Playwright) | not started |
+| 8 | Factory extraction (copier-ize, client #2) | not started |
 
 ## Getting started
 

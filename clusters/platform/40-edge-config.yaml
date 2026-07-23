@@ -1,0 +1,26 @@
+# Wave 4: edge config that depends on the operators above being installed —
+# the Cloudflare-token ExternalSecrets (need ESO + the cert-manager/ingress
+# namespaces) and the Let's Encrypt ClusterIssuers (need cert-manager CRDs).
+# Git-sourced, so repoURL/targetRevision are literal (pins main) — see README.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: edge-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/buildwithamaku/platform-template.git
+    targetRevision: main
+    path: clusters/platform-config/edge
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
