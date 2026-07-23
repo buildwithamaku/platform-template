@@ -44,7 +44,7 @@ jobs:
           ./gitleaks detect --no-banner --redact --exit-code 1
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
+          go-version: "1.25"
       - run: go vet ./... && go test ./...
       - uses: docker/login-action@v3
         with:
