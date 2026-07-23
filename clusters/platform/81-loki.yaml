@@ -1,0 +1,63 @@
+# Loki (D-08 logs). Wave 8. Single-binary + filesystem — right-sized for one
+# staging node; prod scales to the read/write/backend split with object storage.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "8"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 7.1.0
+    helm:
+      values: |
+        deploymentMode: SingleBinary
+        loki:
+          auth_enabled: false
+          commonConfig:
+            replication_factor: 1
+          storage:
+            type: filesystem
+          schemaConfig:
+            configs:
+              - from: "2024-04-01"
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index:
+                  prefix: index_
+                  period: 24h
+          limits_config:
+            retention_period: 72h
+            allow_structured_metadata: true
+        singleBinary:
+          replicas: 1
+          persistence:
+            size: 3Gi
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 512Mi }
+        # Disable the scalable-mode components + extras for single-binary.
+        read: { replicas: 0 }
+        write: { replicas: 0 }
+        backend: { replicas: 0 }
+        gateway: { enabled: false }
+        chunksCache: { enabled: false }
+        resultsCache: { enabled: false }
+        lokiCanary: { enabled: false }
+        test: { enabled: false }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
