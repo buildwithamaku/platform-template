@@ -19,6 +19,13 @@ spec:
       values: |
         crds:
           enabled: true
+        # Resolve the DNS-01 self-check against public resolvers instead of the
+        # cluster's CoreDNS. Best practice for DNS-01 (avoids split-horizon /
+        # internal-DNS flakiness) and required on k3d, whose CoreDNS SERVFAILs
+        # on external lookups.
+        extraArgs:
+          - --dns01-recursive-nameservers-only
+          - --dns01-recursive-nameservers=1.1.1.1:53,8.8.8.8:53
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager
