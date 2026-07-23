@@ -74,8 +74,16 @@ stringData:
   token: "${hcloud_token}"
   network: "${network_name}"
 EOF
-curl -sfL "https://github.com/hetznercloud/hcloud-cloud-controller-manager/releases/download/${hcloud_ccm_version}/ccm-networks.yaml" \
-  -o /var/lib/rancher/k3s/server/manifests/hcloud-ccm.yaml
+# Retry so a transient GitHub blip doesn't abort the whole boot (set -euo
+# pipefail) and cost the node. With cloud-provider=external the node stays
+# NotReady until CCM lands, so fail loudly if the download truly never succeeds.
+CCM_DEST=/var/lib/rancher/k3s/server/manifests/hcloud-ccm.yaml
+CCM_URL="https://github.com/hetznercloud/hcloud-cloud-controller-manager/releases/download/${hcloud_ccm_version}/ccm-networks.yaml"
+for _ in $(seq 1 30); do
+  curl -sfL "$CCM_URL" -o "$CCM_DEST" && break
+  sleep 5
+done
+test -s "$CCM_DEST" || { echo "FATAL: hcloud CCM download failed: $CCM_URL" >&2; exit 1; }
 %{ endif ~}
 
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server
