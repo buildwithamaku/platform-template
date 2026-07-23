@@ -1,0 +1,32 @@
+# CloudNativePG operator (D-05). Wave 5. Declarative HA Postgres: per-app Cluster
+# CRs get a primary + replicas with automatic failover, plus WAL archiving and
+# backups (to R2, wired in the database config). Apps only ever see a
+# DATABASE_URL secret, so the source is swappable (RDS toggle on AWS).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnative-pg
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    # Pinned to 1.30. Do NOT bump to a 1.31+ chart without first migrating the
+    # reference Cluster off the in-tree barmanObjectStore (removed in 1.31.0) to
+    # the Barman Cloud plugin — see clusters/platform-config/database/cluster.yaml.
+    targetRevision: 0.29.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

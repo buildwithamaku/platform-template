@@ -1,0 +1,35 @@
+# R2 credentials for CNPG's Barman backups, delivered by ESO from Infisical
+# (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY at /refclient) into the `data` ns.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: r2-credentials
+  namespace: data
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: infisical
+    kind: ClusterSecretStore
+  target:
+    name: r2-credentials
+    creationPolicy: Owner
+  data:
+    - secretKey: ACCESS_KEY_ID
+      remoteRef:
+        key: R2_ACCESS_KEY_ID
+    - secretKey: SECRET_ACCESS_KEY
+      remoteRef:
+        key: R2_SECRET_ACCESS_KEY
+---
+# Scheduled base backup (CNPG cron is 6-field, seconds first). WAL is archived
+# continuously by the Cluster's barmanObjectStore; a base backup + WAL = PITR.
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: refclient-db-daily
+  namespace: data
+spec:
+  schedule: "0 0 3 * * *"
+  backupOwnerReference: self
+  cluster:
+    name: refclient-db
