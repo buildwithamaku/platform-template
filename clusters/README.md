@@ -8,20 +8,26 @@ run in the cluster, it does **not** go in `tofu/`.
 ```
 clusters/
 ├── bootstrap/            # the app-of-apps ROOT Application (applied by bootstrap.sh)
-├── platform/            # one Argo Application per platform component, sync-wave ordered
-│   ├── 00-external-secrets.yaml   # wave 0 — ESO (+ CRDs)
-│   ├── 00-reloader.yaml           # wave 0 — Stakater Reloader
-│   ├── 10-infisical-store.yaml    # wave 1 — deploys the ClusterSecretStore
-│   └── 20-demo.yaml               # wave 2 — deploys the demo acceptance app
-├── platform-config/
-│   └── infisical/       # the ClusterSecretStore manifest (Infisical -> K8s Secrets)
-└── apps/
-    └── demo/            # ExternalSecret + dummy Deployment (Phase-2 acceptance target)
+├── platform/             # one Argo Application per component, sync-wave ordered:
+│   ├── 00-external-secrets · 00-reloader            # wave 0  secrets spine (ESO, Reloader)
+│   ├── 10-infisical-store · 12-monitoring-secrets   # wave 1  ClusterSecretStore, Slack secret
+│   ├── 30-cert-manager                              # wave 2  TLS (DNS-01)
+│   ├── 31-ingress-nginx · 32-external-dns           # wave 3  edge (Hetzner LB, Cloudflare DNS)
+│   ├── 40-edge-config                               # wave 4  LE issuers + Cloudflare token
+│   ├── 50-demo · 60-cloudnative-pg                  # wave 5  demo app, CNPG operator
+│   ├── 61-database · 62-valkey                      # wave 6  Postgres (R2 backups), Valkey
+│   ├── 70-security                                  # wave 7  deny-node-metadata NetworkPolicies
+│   ├── 80-kube-prometheus-stack · 81-loki · 82-tempo# wave 8  metrics / logs / traces backends
+│   ├── 83-alloy · 84-otel-collector                 # wave 9  log + trace collectors
+│   └── 87-otel-demo · 88-gatus                      # wave 10 obs demo app, status page
+├── platform-config/      # manifests the git-sourced Applications above deploy:
+│   ├── infisical/ · edge/ · database/ · security/ · monitoring-secrets/
+└── apps/                 # workloads: demo/ · valkey/ · otel-demo/ · gatus/
 ```
 
-Sync waves guarantee ordering across Applications: ESO's CRDs (wave 0) exist
-before the `ClusterSecretStore` (wave 1), which exists before the `ExternalSecret`
-(wave 2).
+Sync waves guarantee cross-Application ordering — e.g. ESO's CRDs (wave 0) exist
+before the `ClusterSecretStore` (wave 1); the CNPG operator (wave 5) before its
+`Cluster` (wave 6); the operator's CRDs before the demo's `ServiceMonitor` (wave 10).
 
 ## Bootstrap chain (§6.1)
 
