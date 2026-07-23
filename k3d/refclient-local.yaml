@@ -1,0 +1,21 @@
+# k3d cluster for free local Plane-2 development (§5.2: "dev is local k3d").
+# A single-node k3s in Docker — enough to run ArgoCD + the platform stack.
+apiVersion: k3d.io/v1alpha5
+kind: Simple
+metadata:
+  name: refclient-local
+servers: 1
+agents: 0
+options:
+  k3d:
+    wait: true
+  k3s:
+    nodeLabels:
+      - label: env=local
+        nodeFilters:
+          - server:0
+ports:
+  # host 8081 -> traefik/ingress later; ArgoCD UI is reached via port-forward.
+  - port: 8081:80
+    nodeFilters:
+      - loadbalancer

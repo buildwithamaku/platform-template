@@ -1,0 +1,28 @@
+# The app-of-apps ROOT (§6.1). bootstrap.sh applies this after substituting
+# __REPO_URL__ / __REVISION__. It manages only the child Application manifests
+# directly under clusters/platform/ (recurse=false), each of which then deploys
+# a platform component in sync-wave order.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-root
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: __REPO_URL__
+    targetRevision: __REVISION__
+    path: clusters/platform
+    directory:
+      recurse: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
