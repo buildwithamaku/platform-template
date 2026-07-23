@@ -76,3 +76,21 @@ variable "labels" {
   default     = {}
   description = "Extra Hetzner labels applied to all resources. Keys must be alnum/-/_ (no slashes)."
 }
+
+variable "hcloud_token" {
+  type        = string
+  sensitive   = true
+  description = "Hetzner Cloud API token. Passed to the init node so k3s can plant the `hcloud` Secret that hcloud-cloud-controller-manager uses. Same token you give the provider."
+}
+
+variable "install_hcloud_ccm" {
+  type        = bool
+  default     = true
+  description = "Install hcloud-cloud-controller-manager at cluster bring-up so `type: LoadBalancer` Services get real Hetzner LBs (needed for ingress). When true, k3s runs with the external cloud provider; nodes stay tainted `uninitialized` until the CCM initializes them, so do NOT set true without the CCM."
+}
+
+variable "hcloud_ccm_version" {
+  type        = string
+  default     = "v1.34.0"
+  description = "Pinned hcloud-cloud-controller-manager release. The plain ccm.yaml (no route controller) is used; flannel handles pod networking."
+}
