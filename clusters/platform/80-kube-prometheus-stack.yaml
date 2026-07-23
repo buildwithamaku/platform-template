@@ -38,12 +38,26 @@ spec:
             podMonitorSelectorNilUsesHelmValues: false
             ruleSelectorNilUsesHelmValues: false
             probeSelectorNilUsesHelmValues: false
+            # Persist metrics across pod restarts (default is emptyDir -> data
+            # evaporates on reschedule). Size >= retention's working set.
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 5Gi
             resources:
               requests: { cpu: 100m, memory: 400Mi }
               limits: { memory: 1Gi }
         alertmanager:
           alertmanagerSpec:
             # Mount the ESO-delivered Slack webhook (read via api_url_file below).
+            # SHARP EDGE (runbook): this secret is a hard dependency — if
+            # SLACK_WEBHOOK_URL is missing from Infisical, the secret is never
+            # created and Alertmanager stays in ContainerCreating (no alerting at
+            # all, not just no Slack). Onboarding a client must set it, or drop
+            # this mount + the slack receivers until it's provisioned.
             secrets:
               - alertmanager-slack
             resources:
@@ -102,7 +116,9 @@ spec:
                     matcherType: regex
                     matcherRegex: '"trace_id":"(\w+)"'
                     datasourceUid: tempo
-                    url: '${__value.raw}'
+                    # $$ so Grafana's provisioning env-interpolation leaves a
+                    # literal ${__value.raw} for the derived-field engine.
+                    url: '$${__value.raw}'
             - name: Tempo
               type: tempo
               uid: tempo
