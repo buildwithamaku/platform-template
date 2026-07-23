@@ -31,6 +31,11 @@ spec:
                 grpc: { endpoint: 0.0.0.0:4317 }
                 http: { endpoint: 0.0.0.0:4318 }
           processors:
+            # Back-pressure instead of OOM under a span burst (256Mi limit).
+            memory_limiter:
+              check_interval: 5s
+              limit_percentage: 80
+              spike_limit_percentage: 25
             batch: {}
           exporters:
             otlp/tempo:
@@ -40,7 +45,7 @@ spec:
             pipelines:
               traces:
                 receivers: [otlp]
-                processors: [batch]
+                processors: [memory_limiter, batch]
                 exporters: [otlp/tempo]
         ports:
           otlp:
