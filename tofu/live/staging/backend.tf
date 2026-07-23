@@ -4,16 +4,18 @@
 #
 # For a first local smoke test you may comment this whole block out to use the
 # default local backend, then migrate state once the bucket exists.
-terraform {
-  backend "s3" {
-    key = "refclient/staging/terraform.tfstate"
-
-    # Hetzner Object Storage is not AWS, so skip the AWS-specific preflight checks.
-    region                      = "eu-central-1"
-    skip_credentials_validation = true
-    skip_metadata_api_check     = true
-    skip_region_validation      = true
-    skip_requesting_account_id  = true
-    use_path_style              = true
-  }
-}
+# NOTE: S3 backend temporarily disabled for a local-state smoke test.
+# Re-enable (and `tofu init -migrate-state`) once the Object Storage bucket exists.
+# terraform {
+#   backend "s3" {
+#     key = "refclient/staging/terraform.tfstate"
+#
+#     # Hetzner Object Storage is not AWS, so skip the AWS-specific preflight checks.
+#     region                      = "eu-central-1"
+#     skip_credentials_validation = true
+#     skip_metadata_api_check     = true
+#     skip_region_validation      = true
+#     skip_requesting_account_id  = true
+#     use_path_style              = true
+#   }
+# }
