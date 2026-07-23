@@ -92,5 +92,5 @@ variable "install_hcloud_ccm" {
 variable "hcloud_ccm_version" {
   type        = string
   default     = "v1.34.0"
-  description = "Pinned hcloud-cloud-controller-manager release. The plain ccm.yaml (no route controller) is used; flannel handles pod networking."
+  description = "Pinned hcloud-cloud-controller-manager release. The network-aware ccm-networks.yaml is deployed so LoadBalancers target nodes by private IP. Its route controller is enabled by default: harmless on single-node staging, but on multi-node prod it overlaps flannel — disable CCM routes or adjust flannel-backend there."
 }

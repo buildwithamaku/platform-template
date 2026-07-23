@@ -1,6 +1,9 @@
 # Let's Encrypt ClusterIssuers (DNS-01 via Cloudflare). Staging = untrusted certs
 # but no rate limits (use it to prove the flow); prod = real green-lock certs.
 # Both solve via the cloudflare-api-token Secret in the cert-manager namespace.
+#
+# PER CLIENT: `email` below is the ACME account identity (not just a label) —
+# set it per client. Currently the reference client's.
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:

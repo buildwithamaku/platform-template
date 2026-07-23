@@ -7,7 +7,10 @@ metadata:
   name: demo
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"
+    # Wave 5: after ingress-nginx (3) and the edge-config issuers (4), so the
+    # demo Ingress's Certificate finds its ClusterIssuer + IngressClass on first
+    # sync instead of backing off.
+    argocd.argoproj.io/sync-wave: "5"
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
