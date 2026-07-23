@@ -1,0 +1,11 @@
+# Prod overlay — deployed to the prod cluster. The image newTag is bumped only
+# via an approved PROMOTION PR (§6.2), never automatically. `git log` of this
+# file is the complete prod deploy history; `git revert` rolls back.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: data
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/buildwithamaku/refclient-backend
+    newTag: latest # bumped by an approved promotion PR
