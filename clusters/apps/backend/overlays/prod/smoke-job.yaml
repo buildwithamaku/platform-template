@@ -1,8 +1,18 @@
-# Prod PostSync smoke gate (§6.2 / Phase-7 acceptance). After ArgoCD syncs prod,
-# this runs the @smoke pack against the freshly-rolled backend Service. If it
-# fails, the SYNC fails -> the previous ReplicaSet keeps serving, and the failed
-# Job trips the Backend*SmokeFailed PrometheusRule -> Slack (page). Same e2e image
-# as staging; args select the @smoke subset. Runs in `data` (uses ghcr-pull).
+# Prod PostSync smoke check (§6.2 / Phase-7 acceptance: "failure alerts + revert").
+# After ArgoCD syncs prod, this runs the @smoke pack against the backend Service.
+#
+# IMPORTANT — this DETECTS a bad deploy, it does not PREVENT one. PostSync runs
+# only after the Sync phase is applied and Healthy, so by now the new version is
+# already live and the old ReplicaSet is scaled to zero. A smoke failure marks the
+# sync Failed (red in Argo) and trips BackendPostDeploySmokeFailed -> Slack (page),
+# so a human `git revert`s the bad tag. It is fast automated detection + a page,
+# not a rollout gate. (True gating = new version held back until smoke passes would
+# need progressive delivery — Argo Rollouts + AnalysisTemplate — which the plan
+# does not ask for.) Note: contract breaks that also fail /readyz never reach here
+# (the rolling update stalls first — that's the readiness probe, not this).
+#
+# Same e2e image as staging; args select the @smoke subset. Runs in `data` (uses
+# ghcr-pull — the refclient-e2e package must be authorized for that pull token).
 apiVersion: batch/v1
 kind: Job
 metadata:

@@ -1,6 +1,9 @@
-# Staging PostSync full-suite gate. After ArgoCD syncs staging, run the FULL
-# Playwright suite against the backend Service — catches contract regressions on
-# every staging deploy, before anything is promoted to prod. No args = full suite.
+# Staging PostSync full suite. After ArgoCD syncs staging, run the FULL Playwright
+# suite against the backend Service. Like the prod smoke check, this DETECTS (not
+# prevents) — the new version is already live in staging when it runs; a failure
+# marks the staging sync Failed + pages, so a regression is caught in staging
+# before anyone opens a promotion PR to prod. No args = full suite. (uses
+# ghcr-pull — refclient-e2e must be authorized for that pull token.)
 apiVersion: batch/v1
 kind: Job
 metadata:
