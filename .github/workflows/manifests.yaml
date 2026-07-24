@@ -34,3 +34,23 @@ jobs:
             -schema-location default \
             -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
             clusters/
+
+      - name: Install kustomize (pinned)
+        run: |
+          curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+            | bash -s 5.4.3
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Render + validate Kustomize overlays
+        run: |
+          # Renders every overlay (base + patches + image tags) and schema-checks
+          # the result — catches broken overlays kubeconform can't see in raw files.
+          for k in $(find clusters/apps -type f -name kustomization.yaml -path '*/overlays/*'); do
+            dir="$(dirname "$k")"
+            echo "== $dir =="
+            kustomize build "$dir" | kubeconform \
+              -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
+              -schema-location default \
+              -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
+              -
+          done
