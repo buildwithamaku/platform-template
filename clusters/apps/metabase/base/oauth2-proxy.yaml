@@ -1,0 +1,77 @@
+# oauth2-proxy — the SSO gate in front of Metabase at bi.<domain> (§4.3 / D-?).
+# The ingress points at THIS (:4180), which authenticates the request against the
+# OIDC provider and then proxies to the Metabase Service (:3000). Nothing reaches
+# Metabase unauthenticated.
+#
+# Generic OIDC so the provider is swappable (Phase 8 copier variables): the
+# reference client defaults to an agency-owned Google OIDC app restricted to the
+# agency email domain. client-id/secret/cookie-secret come from ESO (metabase-oauth
+# ExternalSecret). The per-env redirect URL is added by each overlay.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oauth2-proxy
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+    app.kubernetes.io/part-of: refclient
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: oauth2-proxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: oauth2-proxy
+        app.kubernetes.io/part-of: refclient
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+        - name: oauth2-proxy
+          image: quay.io/oauth2-proxy/oauth2-proxy:v7.8.1
+          args:
+            - --http-address=0.0.0.0:4180
+            - --upstream=http://metabase:3000
+            - --provider=oidc
+            - --oidc-issuer-url=https://accounts.google.com
+            - --email-domain=amakusolutions.com # agency allow-list; Phase-8 variable
+            - --cookie-secure=true
+            - --reverse-proxy=true
+            - --skip-provider-button=true
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              valueFrom:
+                secretKeyRef: { name: metabase-oauth, key: client-id }
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef: { name: metabase-oauth, key: client-secret }
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              valueFrom:
+                secretKeyRef: { name: metabase-oauth, key: cookie-secret }
+          ports:
+            - { containerPort: 4180, name: http }
+          readinessProbe:
+            httpGet: { path: /ping, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 64Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: oauth2-proxy
+  labels:
+    app.kubernetes.io/name: oauth2-proxy
+spec:
+  selector:
+    app.kubernetes.io/name: oauth2-proxy
+  ports:
+    - name: http
+      port: 4180
+      targetPort: http

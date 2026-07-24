@@ -58,3 +58,20 @@ spec:
         compression: gzip
       data:
         compression: gzip
+
+  # Managed read-only role for Metabase BI (Phase 7). CNPG creates/maintains the
+  # role declaratively; its password comes from the metabase-ro-credentials Secret
+  # (ESO -> Infisical). Object-level GRANTs on appdb are applied by the
+  # metabase-ro-grants hook Job — CNPG manages the ROLE, not object privileges.
+  managed:
+    roles:
+      - name: metabase_ro
+        ensure: present
+        comment: Read-only BI access for Metabase (Phase 7)
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        passwordSecret:
+          name: metabase-ro-credentials

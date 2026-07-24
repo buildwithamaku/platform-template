@@ -1,0 +1,19 @@
+# Per-namespace metadata-endpoint egress deny (same policy as
+# platform-config/security/metadata-deny.yaml, co-located here because the
+# metabase namespace is created by this app — keeps it self-contained and avoids
+# a sync-ordering race with the wave-7 security app). Blocks pod egress to the
+# cloud metadata IP (169.254.169.254) while allowing everything else.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-node-metadata
+  namespace: metabase
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 169.254.169.254/32

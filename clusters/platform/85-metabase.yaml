@@ -1,0 +1,29 @@
+# Wave 12: Metabase (BI) — its own CNPG app-db + oauth2-proxy SSO gate. Points at
+# overlays/staging (like the backend app); a real prod cluster's equivalent
+# Application points at overlays/prod. Depends on the CNPG operator (wave 5) for
+# its app-db and on the product DB + metabase_ro role/grants (database app,
+# wave 6). Git-sourced (pins main — see clusters/README.md).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metabase
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "12"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/buildwithamaku/platform-template.git
+    targetRevision: main
+    path: clusters/apps/metabase/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metabase
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
