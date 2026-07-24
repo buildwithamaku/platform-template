@@ -72,17 +72,32 @@ jobs:
         with:
           repository: ${{ inputs.platform_repo }}
           token: ${{ steps.apptoken.outputs.token }}
-      - name: Install kustomize
+      - name: Install kustomize (pinned)
         run: |
-          curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+          curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+            | bash -s 5.4.3
           sudo mv kustomize /usr/local/bin/
-      - name: Bump staging image tag
-        run: |
-          cd "clusters/apps/${{ inputs.app }}/overlays/staging"
-          kustomize edit set image "${{ inputs.image }}=${{ inputs.image }}:${{ needs.build.outputs.tag }}"
-      - name: Commit the deploy (staging is hands-off)
+      # ENFORCEMENT (runbook): the staging/prod boundary here is that this
+      # workflow only edits overlays/staging — the deployer App has repo-wide
+      # contents:write (GitHub can't scope below repo). Real protection —
+      # protected main + the `production` environment's required reviewers —
+      # needs a public repo or a paid tier; on a private free plan those APIs
+      # 403 and cannot be enabled. When you harden: add buildwithamaku-deployer
+      # to the branch-protection bypass list or these staging pushes start failing.
+      - name: Bump staging tag + commit (rebase-retry, no-op safe)
         run: |
           git config user.name "${{ steps.apptoken.outputs.app-slug }}[bot]"
           git config user.email "${{ steps.apptoken.outputs.app-slug }}[bot]@users.noreply.github.com"
-          git commit -am "deploy(${{ inputs.app }}): staging -> ${{ needs.build.outputs.tag }}"
-          git push
+          overlay="clusters/apps/${{ inputs.app }}/overlays/staging"
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            ( cd "$overlay" && kustomize edit set image \
+                "${{ inputs.image }}=${{ inputs.image }}:${{ needs.build.outputs.tag }}" )
+            if git diff --quiet; then
+              echo "overlay already at ${{ needs.build.outputs.tag }} — nothing to deploy"; exit 0
+            fi
+            git commit -qam "deploy(${{ inputs.app }}): staging -> ${{ needs.build.outputs.tag }}"
+            if git push; then exit 0; fi
+            echo "push rejected (attempt $attempt) — re-syncing main and retrying"; sleep $((attempt * 3))
+          done
+          echo "::error::could not push tag-bump after 5 attempts"; exit 1

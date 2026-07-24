@@ -1,0 +1,24 @@
+# Restores §6.5 SLO alert coverage (the otel-demo carried the only one). Fires on
+# a real 5xx burn from the backend's own metric — unlike the demo, only on genuine
+# errors, so it doesn't page in steady state. Critical -> Alertmanager slack-pages.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+spec:
+  groups:
+    - name: backend.slo
+      rules:
+        - alert: Backend5xxHighErrorRate
+          expr: |
+            sum(rate(http_requests_total{route!="",status=~"5.."}[5m]))
+            /
+            sum(rate(http_requests_total{route!=""}[5m])) > 0.10
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: backend 5xx error rate above 10%
+            description: 'backend is returning 5xx for >10% of requests over 5m. Logs: {app="backend"} |= "error" — click the trace_id through to Tempo.'
