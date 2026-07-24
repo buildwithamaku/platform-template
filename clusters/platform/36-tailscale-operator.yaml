@@ -1,0 +1,40 @@
+# Wave 4: Tailscale Kubernetes Operator (D-09 — private admin access). Publishes
+# annotated Services (tailscale.com/expose) and Tailscale-class Ingresses to the
+# tailnet as MagicDNS devices, and runs the API-server proxy so kubectl works over
+# the tailnet (lets api_allowed_cidrs be tightened — follow-up in the tofu module).
+#
+# Auth: reads the pre-created operator-oauth secret (wave 3, ESO). Leaving the
+# chart's oauth values unset makes it use that existing secret instead of putting
+# creds in git. Pin the chart; verify the latest at deploy.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-operator
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "4"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://pkgs.tailscale.com/helmcharts
+    chart: tailscale-operator
+    targetRevision: 1.80.0
+    helm:
+      releaseName: tailscale-operator
+      values: |
+        apiServerProxyConfig:
+          # Expose the k8s API over the tailnet; auth uses tailnet identity +
+          # impersonation (so RBAC still applies). "noauth" would skip that.
+          mode: "true"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # the operator ships large CRDs (apply, not client-side)

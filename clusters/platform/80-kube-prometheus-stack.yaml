@@ -96,6 +96,13 @@ spec:
                     title: ':rotating_light: PAGE [{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.namespace }})'
                     text: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}"
         grafana:
+          # Tailscale-only access (D-09): the Tailscale operator picks up this
+          # annotation and publishes Grafana to the tailnet as MagicDNS `grafana`.
+          # No public ingress — reachable only over the tailnet.
+          service:
+            annotations:
+              tailscale.com/expose: "true"
+              tailscale.com/hostname: grafana
           defaultDashboardsTimezone: browser
           sidecar:
             dashboards:

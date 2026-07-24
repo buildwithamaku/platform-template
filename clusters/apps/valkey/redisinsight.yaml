@@ -1,0 +1,63 @@
+# Redis Insight — the cache GUI (D-09), deferred from Phase 4 to the Tailscale
+# phase. Tailnet-only via the tailscale.com/expose annotation on its Service
+# (published as MagicDNS `redisinsight`); no public ingress. Valkey is Redis-wire
+# compatible, so Redis Insight drives it fine.
+#
+# Connect it in the UI (one-time): Add database -> host `valkey.cache.svc`,
+# port 6379. Storage is ephemeral (emptyDir) — saved connections reset on pod
+# restart; add a PVC if that matters (follow-up).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redisinsight
+  namespace: cache
+  labels:
+    app.kubernetes.io/name: redisinsight
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redisinsight
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redisinsight
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: redisinsight
+          image: redis/redisinsight:2.60
+          ports:
+            - { containerPort: 5540, name: http }
+          volumeMounts:
+            - { name: data, mountPath: /data }
+          readinessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 25m, memory: 128Mi }
+            limits: { memory: 512Mi }
+      volumes:
+        - { name: data, emptyDir: {} }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redisinsight
+  namespace: cache
+  labels:
+    app.kubernetes.io/name: redisinsight
+  annotations:
+    tailscale.com/expose: "true"
+    tailscale.com/hostname: redisinsight
+spec:
+  selector:
+    app.kubernetes.io/name: redisinsight
+  ports:
+    - name: http
+      port: 5540
+      targetPort: http

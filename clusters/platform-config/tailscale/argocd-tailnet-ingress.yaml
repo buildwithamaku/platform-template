@@ -1,0 +1,22 @@
+# Publishes the ArgoCD UI to the tailnet (D-09) as MagicDNS `argocd`, over HTTPS
+# (Tailscale provisions the cert). No public ingress — tailnet-only. Lives in the
+# argocd namespace because an Ingress backend must be same-namespace; ArgoCD's
+# server Service is bootstrap-installed there (running --insecure, so http :80).
+# The Tailscale operator (which provides the `tailscale` IngressClass) serves it.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-tailnet
+  namespace: argocd
+  annotations:
+    tailscale.com/hostname: argocd
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: argocd-server
+      port:
+        number: 80
+  tls:
+    - hosts:
+        - argocd
