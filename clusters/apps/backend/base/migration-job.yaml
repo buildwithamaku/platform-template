@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/name: backend
     spec:
       restartPolicy: Never
+      imagePullSecrets:
+        - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
