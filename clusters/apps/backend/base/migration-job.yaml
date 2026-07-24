@@ -22,6 +22,7 @@ spec:
       restartPolicy: Never
       securityContext:
         runAsNonRoot: true
+        runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
       containers:
         - name: migrate
           image: ghcr.io/buildwithamaku/refclient-backend
