@@ -16,9 +16,9 @@ data:
     storage:
       type: memory
     endpoints:
-      - name: "demo-api (internal)"
+      - name: "backend (internal)"
         group: "internal"
-        url: "http://demo-api.demo.svc:8080/metrics"
+        url: "http://backend.data.svc/readyz"
         interval: 30s
         conditions:
           - "[STATUS] == 200"
