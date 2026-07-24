@@ -12,4 +12,5 @@ images:
   newName: ghcr.io/buildwithamaku/refclient-backend
   newTag: sha-43942fc
 - name: ghcr.io/buildwithamaku/refclient-e2e
-  newTag: sha-0000000 # bumped by e2e-image.yaml on e2e/ changes
+  newName: ghcr.io/buildwithamaku/refclient-e2e
+  newTag: sha-cc53077
