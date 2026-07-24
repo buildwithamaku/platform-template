@@ -31,7 +31,11 @@ spec:
         runAsUser: 26 # postgres uid in the CNPG image
       containers:
         - name: grants
-          image: ghcr.io/cloudnative-pg/postgresql:16.4
+          # Must match the running CNPG cluster image (has psql, already pulled on
+          # the node). Keep in sync with the operator's default PG image; a copier
+          # variable in Phase 8. A wrong/absent tag here stalls the Job to its
+          # activeDeadline instead of failing fast.
+          image: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
           command: ["/bin/sh", "-c"]
           args:
             - |
