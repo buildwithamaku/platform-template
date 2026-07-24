@@ -1,0 +1,15 @@
+# Small API-only E2E image: Node + @playwright/test (no browsers — the suite uses
+# Playwright's request context). Runs the full suite (staging PostSync hook) or
+# the @smoke subset (prod PostSync hook). Non-root; writes only to /tmp.
+FROM node:20-slim
+ENV HOME=/tmp \
+    CI=true \
+    NODE_ENV=production
+WORKDIR /e2e
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund && chown -R node:node /e2e
+COPY playwright.config.ts ./
+COPY tests ./tests
+USER node
+# Args from the k8s Job select the pack: [] = full suite, ["--grep","@smoke"] = smoke.
+ENTRYPOINT ["npx", "playwright", "test"]
