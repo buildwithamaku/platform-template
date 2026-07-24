@@ -6,6 +6,12 @@
 # Auth: reads the pre-created operator-oauth secret (wave 3, ESO). Leaving the
 # chart's oauth values unset makes it use that existing secret instead of putting
 # creds in git. Pin the chart; verify the latest at deploy.
+#
+# THREAT MODEL (runbook): with mode:"true" the operator's ServiceAccount holds
+# cluster-wide impersonation rights AND the pod holds the tailnet OAuth client — so
+# the `tailscale` namespace is high-value (compromise -> impersonate cluster
+# identities + mint tailnet devices). Mitigations: keep OAuth scopes minimal
+# (Devices Core + Auth Keys only), and treat this ns like argocd/eso in RBAC review.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

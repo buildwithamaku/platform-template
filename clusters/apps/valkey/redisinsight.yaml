@@ -1,7 +1,7 @@
 # Redis Insight — the cache GUI (D-09), deferred from Phase 4 to the Tailscale
-# phase. Tailnet-only via the tailscale.com/expose annotation on its Service
-# (published as MagicDNS `redisinsight`); no public ingress. Valkey is Redis-wire
-# compatible, so Redis Insight drives it fine.
+# phase. Tailnet-only via a tailscale-class Ingress (below) -> https://redisinsight;
+# no public ingress. Valkey is Redis-wire compatible, so Redis Insight drives it
+# fine. See the Ingress for the access-control caveat (no app-layer auth).
 #
 # Connect it in the UI (one-time): Add database -> host `valkey.cache.svc`,
 # port 6379. Storage is ephemeral (emptyDir) — saved connections reset on pod
@@ -51,9 +51,6 @@ metadata:
   namespace: cache
   labels:
     app.kubernetes.io/name: redisinsight
-  annotations:
-    tailscale.com/expose: "true"
-    tailscale.com/hostname: redisinsight
 spec:
   selector:
     app.kubernetes.io/name: redisinsight
@@ -61,3 +58,29 @@ spec:
     - name: http
       port: 5540
       targetPort: http
+---
+# Tailnet exposure via a tailscale-class Ingress (https://redisinsight, operator
+# TLS — uniform with argocd/grafana).
+#
+# SECURITY: Redis Insight has NO app-layer login and Valkey has no in-cluster
+# password, so reaching this device == unauthenticated read/write to the entire
+# cache. Tailnet membership alone is NOT the boundary — restrict WHO can reach it
+# with a Tailscale ACL grant scoped to tag:k8s (example in the operator-oauth
+# ExternalSecret). Hardening follow-up: give Valkey a requirepass via ESO.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: redisinsight-tailnet
+  namespace: cache
+  annotations:
+    tailscale.com/hostname: redisinsight
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: redisinsight
+      port:
+        number: 5540
+  tls:
+    - hosts:
+        - redisinsight
