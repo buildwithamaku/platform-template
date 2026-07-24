@@ -34,7 +34,7 @@ spec:
         fsGroup: 2000
       containers:
         - name: metabase
-          # Pin to a current Metabase release; verify the tag exists at deploy time.
+          # Pinned; verified running on the Hetzner e2e (2026-07-24). Bump deliberately.
           image: metabase/metabase:v0.52.8
           ports:
             - { containerPort: 3000, name: http }
@@ -56,14 +56,20 @@ spec:
           volumeMounts:
             - { name: plugins, mountPath: /plugins }
             - { name: tmp, mountPath: /tmp }
+          # Gate liveness/readiness until first boot finishes. Metabase's cold start
+          # runs its own app-db migrations against a fresh CNPG cluster and can be
+          # slow on modest storage; without this, liveness (~180s) can kill it
+          # mid-migration -> crash-loop. kubelet holds liveness until startup passes.
+          startupProbe:
+            httpGet: { path: /api/health, port: http }
+            periodSeconds: 10
+            failureThreshold: 30 # up to ~5m for first-boot app-db migrations
           readinessProbe:
             httpGet: { path: /api/health, port: http }
-            initialDelaySeconds: 30
             periodSeconds: 10
-            failureThreshold: 18
+            failureThreshold: 3
           livenessProbe:
             httpGet: { path: /api/health, port: http }
-            initialDelaySeconds: 120
             periodSeconds: 20
           resources:
             requests: { cpu: 250m, memory: 1Gi }
