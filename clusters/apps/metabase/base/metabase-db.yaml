@@ -1,0 +1,29 @@
+# Metabase's OWN application database (its dashboards, questions, users, settings
+# live here — NOT the product data). Separate CNPG Cluster so Metabase state is
+# isolated from the product DB. 2 instances = basic HA (1 primary + 1 replica).
+#
+# CNPG generates the `metabase-db-app` Secret (username/password/dbname/host/port/
+# uri) that the Metabase Deployment consumes as MB_DB_* env.
+#
+# NOTE (follow-up): no barmanObjectStore backup here yet — Metabase metadata is
+# reconstructable and this keeps R2 credentials out of the metabase namespace.
+# Add a ScheduledBackup (serverName nests separately in the shared bucket) if the
+# dashboards become business-critical.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: metabase-db
+  namespace: metabase
+spec:
+  instances: 2
+  primaryUpdateStrategy: unsupervised
+  storage:
+    size: 2Gi
+  affinity:
+    podAntiAffinityType: preferred
+  bootstrap:
+    initdb:
+      database: metabaseapp
+      owner: metabase
+  monitoring:
+    enablePodMonitor: false
