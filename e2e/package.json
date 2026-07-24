@@ -1,0 +1,13 @@
+{
+  "name": "refclient-e2e",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Playwright API E2E for the refclient platform (@smoke subset runs as a prod PostSync hook).",
+  "scripts": {
+    "test": "playwright test",
+    "smoke": "playwright test --grep @smoke"
+  },
+  "dependencies": {
+    "@playwright/test": "1.48.2"
+  }
+}

@@ -1,0 +1,67 @@
+# Builds the platform's E2E image (the Playwright API suite) and bumps the tag
+# both backend overlays reference. Triggers on e2e/** changes to main. Unlike the
+# app image (built in the app repo via build-and-bump), this is platform TEST
+# TOOLING, so it lives and builds here and auto-bumps BOTH overlays — it changes
+# which tests run, not which app code is deployed (the backend image stays
+# PR-gated for prod). Self-commits with GITHUB_TOKEN (same repo, no App needed).
+name: e2e-image
+
+on:
+  push:
+    branches: [main]
+    paths: ["e2e/**", ".github/workflows/e2e-image.yaml"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: tag
+        run: echo "tag=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./e2e
+          push: true
+          tags: ghcr.io/buildwithamaku/refclient-e2e:${{ steps.tag.outputs.tag }}
+
+  bump:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kustomize (pinned)
+        run: |
+          curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
+            | bash -s 5.4.3
+          sudo mv kustomize /usr/local/bin/
+      - name: Bump e2e image tag in both overlays (rebase-retry, no-op safe)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          img=ghcr.io/buildwithamaku/refclient-e2e
+          for attempt in 1 2 3 4 5; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            for env in staging prod; do
+              ( cd "clusters/apps/backend/overlays/$env" \
+                && kustomize edit set image "$img=$img:${{ needs.build.outputs.tag }}" )
+            done
+            if git diff --quiet; then
+              echo "overlays already at ${{ needs.build.outputs.tag }} — nothing to bump"; exit 0
+            fi
+            git commit -qam "chore(e2e): image -> ${{ needs.build.outputs.tag }}"
+            if git push; then exit 0; fi
+            echo "push rejected (attempt $attempt) — re-syncing and retrying"; sleep $((attempt * 3))
+          done
+          echo "::error::could not push e2e image bump after 5 attempts"; exit 1

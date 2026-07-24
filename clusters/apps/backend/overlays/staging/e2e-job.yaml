@@ -1,0 +1,36 @@
+# Staging PostSync full-suite gate. After ArgoCD syncs staging, run the FULL
+# Playwright suite against the backend Service — catches contract regressions on
+# every staging deploy, before anything is promoted to prod. No args = full suite.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backend-e2e
+  namespace: data
+  labels:
+    app.kubernetes.io/name: backend-e2e
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 1
+  activeDeadlineSeconds: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend-e2e
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # node user in node:20-slim
+      containers:
+        - name: e2e
+          image: ghcr.io/buildwithamaku/refclient-e2e
+          env:
+            - { name: BASE_URL, value: "http://backend.data.svc" }
+            - { name: CI, value: "true" }
+          resources:
+            requests: { cpu: 50m, memory: 128Mi }
+            limits: { memory: 256Mi }

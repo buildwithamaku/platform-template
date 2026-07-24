@@ -22,3 +22,19 @@ spec:
           annotations:
             summary: backend 5xx error rate above 10%
             description: 'backend is returning 5xx for >10% of requests over 5m. Logs: {app="backend"} |= "error" — click the trace_id through to Tempo.'
+    - name: backend.e2e
+      rules:
+        # A PostSync e2e/smoke Job that failed means a bad deploy (§6.2 gate): the
+        # sync was rejected and the old version keeps serving. kube-state-metrics
+        # reports the failed Job -> this pages so a human confirms the rejection.
+        - alert: BackendPostDeploySmokeFailed
+          expr: |
+            max by (namespace, job_name) (
+              kube_job_status_failed{namespace="data", job_name=~"backend-(smoke|e2e).*"}
+            ) > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: backend post-deploy e2e/smoke failed
+            description: 'A backend PostSync e2e/smoke Job failed after an Argo sync — the deploy is bad and the sync was rejected (old version still serving). Inspect: kubectl -n data logs job/backend-smoke (or backend-e2e).'

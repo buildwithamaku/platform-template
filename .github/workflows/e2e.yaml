@@ -1,0 +1,44 @@
+# PR gate for the Playwright suite itself: validates the tests compile/list, that
+# the full suite passes against a correct backend contract, and — critically —
+# that the @smoke pack FAILS against a broken one (so the prod PostSync gate can't
+# silently rot into a no-op). This runs against an ephemeral mock, not a live
+# cluster; the real env verification is the in-cluster PostSync hooks (staging
+# full, prod @smoke).
+name: e2e
+
+on:
+  pull_request:
+    paths: ["e2e/**", ".github/workflows/e2e.yaml"]
+
+jobs:
+  suite:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+
+      - name: Tests compile + list
+        run: npx playwright test --list
+
+      - name: Full suite passes against a correct backend
+        run: |
+          node ci/mock-backend.js & MOCK=$!
+          sleep 1
+          BASE_URL=http://localhost:8080 npx playwright test
+          kill $MOCK
+
+      - name: '@smoke FAILS against a broken backend (gate must detect breakage)'
+        run: |
+          BROKEN=1 node ci/mock-backend.js & MOCK=$!
+          sleep 1
+          if BASE_URL=http://localhost:8080 npx playwright test --grep @smoke; then
+            echo "::error::@smoke passed against a broken backend — the smoke gate is a no-op"; kill $MOCK; exit 1
+          fi
+          echo "good: @smoke correctly failed the broken backend"
+          kill $MOCK
