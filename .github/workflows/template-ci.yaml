@@ -1,0 +1,59 @@
+# CI for the TEMPLATE repo itself (the client-facing workflows live under
+# template/.github and are stamped, not run here). Three guards:
+#   1. gitleaks — block secrets/state from ever entering this (public-bound) repo
+#      [the control that would have caught the kubeconfig/tfvars/backend.hcl leak].
+#   2. render — `copier copy` the refclient answers must succeed.
+#   3. kubeconform — the rendered manifests + overlays must validate, so template
+#      reproducibility can't silently rot.
+name: template-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  SCHEMA: 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: gitleaks (blocking secret scan)
+        run: |
+          V=8.21.2
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${V}/gitleaks_${V}_linux_x64.tar.gz" | tar -xz gitleaks
+          ./gitleaks detect --no-banner --redact --exit-code 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet copier
+
+      - name: Render the refclient from the template
+        run: |
+          copier copy --data-file refclient.copier-answers.yml --defaults --trust \
+            --vcs-ref HEAD . /tmp/render
+
+      - name: Install kubeconform + kustomize (pinned)
+        run: |
+          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
+          sudo install kubeconform /usr/local/bin/
+          curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.3
+          sudo mv kustomize /usr/local/bin/
+
+      - name: kubeconform rendered manifests
+        run: |
+          kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
+            -schema-location default -schema-location "$SCHEMA" /tmp/render/clusters
+
+      - name: kubeconform rendered kustomize overlays
+        run: |
+          for k in $(find /tmp/render/clusters/apps -type f -name kustomization.yaml -path '*/overlays/*'); do
+            echo "== $(dirname "$k") =="
+            kustomize build "$(dirname "$k")" | kubeconform \
+              -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
+              -schema-location default -schema-location "$SCHEMA" -
+          done

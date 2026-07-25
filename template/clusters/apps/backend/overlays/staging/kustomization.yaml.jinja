@@ -1,0 +1,16 @@
+# Staging overlay — deployed to the staging cluster. The image newTag is bumped
+# automatically by CI (build-and-bump) on every merge to the backend repo's main.
+# Runs in the `data` namespace, alongside its CNPG Cluster + app secret.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: data
+resources:
+- ../../base
+- e2e-job.yaml
+images:
+- name: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
+  newName: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
+  newTag: sha-43942fc
+- name: ghcr.io/{{ registry_org }}/{{ client_name }}-e2e
+  newName: ghcr.io/{{ registry_org }}/{{ client_name }}-e2e
+  newTag: sha-cc53077

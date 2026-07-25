@@ -1,0 +1,164 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Platform factory template — the per-client questionnaire (Phase 8).
+#
+# `copier copy gh:buildwithamaku/platform-template <client>-platform` renders a
+# full platform repo from the answers below. The refclient is reproduced by the
+# committed answers file (refclient.copier-answers.yml); client #2 is a new one.
+#
+# Rendered files live under `template/` (_subdirectory), so this repo's root stays
+# the "template meta" (this file, docs, the template's own CI) — not something a
+# cluster ever reconciles.
+# ─────────────────────────────────────────────────────────────────────────────
+_min_copier_version: "9.0.0"
+_subdirectory: template
+_templates_suffix: .jinja
+
+# Never stamp these into a client repo: build/state artifacts and the refclient's
+# own local secrets. (copier does not read .gitignore.) terraform.tfvars is
+# per-client + secret — the client fills it from terraform.tfvars.example.
+_exclude:
+  - "copier.yml"
+  - "~*"
+  - ".git"
+  - ".DS_Store"
+  - "**/node_modules"
+  - "**/.terraform"
+  - "**/terraform.tfstate*"
+  - "**/terraform.tfvars"
+  - "**/.gen"
+  - "**/kubeconfig"
+  - "**/backend.hcl" # per-client state backend config; only backend.hcl.example ships
+
+# ── Identity ────────────────────────────────────────────────────────────────
+client_name:
+  type: str
+  help: Short client slug — lowercase, used in cluster names, k8s labels, Infisical path
+  validator: >-
+    {% if not (client_name | regex_search('^[a-z][a-z0-9-]{1,30}$')) %}
+    must be lowercase alphanumeric/hyphen, starting with a letter
+    {% endif %}
+
+domain:
+  type: str
+  help: Primary domain (e.g. acme.com). Apps served at <sub>.<domain>; admin UIs on the tailnet.
+
+registry_org:
+  type: str
+  help: GitHub/GHCR org that hosts the platform repo + app images
+  default: "{{ client_name }}"
+
+platform_repo:
+  type: str
+  help: Name of the client's platform repo (ArgoCD reconciles it). refclient's is "platform-template".
+  default: "{{ client_name }}-platform"
+
+acme_email:
+  type: str
+  help: Email for the Let's Encrypt ACME account (per client — it's an identity, not a label)
+
+# ── Cloud / infra ───────────────────────────────────────────────────────────
+cloud:
+  type: str
+  help: Cloud provider for the clusters
+  choices: [hetzner, aws, hostinger]
+  default: hetzner
+
+region:
+  type: str
+  help: Region/location (hetzner nbg1|fsn1|hel1 · aws eu-central-1 · ...)
+  default: nbg1
+
+# ── Reference apps (asked before node sizing: Metabase needs a bigger staging node)
+app_backend:
+  type: bool
+  default: true
+app_frontend:
+  type: bool
+  default: false
+app_metabase:
+  type: bool
+  help: BI — Metabase read-only on prod data
+  default: true
+
+staging_node_type:
+  type: str
+  help: >-
+    Staging node instance type. Metabase needs >= 16GB (Phase-7 proved cpx22/4GB
+    OOMs the stack), so the default is cpx42 when Metabase is on. Run
+    scripts/hetzner-server-types.sh <region> to confirm it's sold there.
+  default: "{% if app_metabase %}cpx42{% else %}cpx22{% endif %}"
+
+prod_node_type:
+  type: str
+  help: Prod node instance type
+  default: cpx32
+
+prod_node_count:
+  type: int
+  help: Prod nodes (3 = embedded-etcd HA)
+  default: 3
+
+gpu:
+  type: bool
+  help: Provision a GPU node pool + NVIDIA operator (managed cloud only — Hetzner has ~none)
+  default: false
+
+r2_account_id:
+  type: str
+  help: Cloudflare R2 account id (for the Postgres backup bucket endpoint). Bucket = <client>-pg-backups.
+  default: ""
+
+# ── Repos ───────────────────────────────────────────────────────────────────
+repo_layout:
+  type: str
+  help: App code layout (build/CI only — the platform repo is identical either way, D-10)
+  choices: [polyrepo, monorepo]
+  default: polyrepo
+
+# ── Capability matrix (proven components you toggle on — grows over time) ────
+cap_preview_envs:
+  type: bool
+  help: Per-PR ephemeral environments (ArgoCD ApplicationSet PR generator) — Railway-migrant favourite
+  default: false
+cap_service_mesh:
+  type: bool
+  help: mTLS + traffic policy between services (Linkerd) — for real microservices
+  default: false
+cap_event_bus:
+  type: bool
+  help: Async messaging (NATS)
+  default: false
+cap_vector_db:
+  type: bool
+  help: pgvector on the app DB (nearly free — a CNPG extension), or a dedicated store
+  default: false
+cap_model_serving:
+  type: bool
+  help: Model serving (vLLM/KServe) — implies gpu on a managed cloud
+  default: false
+
+# ── Platform choices (see phase-8-copier-decisions) ─────────────────────────
+vpn:
+  type: str
+  help: Private admin access backend. tailscale=SaaS; headscale/netbird=self-hosted (no per-seat).
+        NOTE switching from tailscale changes the auth model (pre-auth keys vs OAuth).
+  choices: [tailscale, headscale, netbird]
+  default: tailscale
+
+idp:
+  type: str
+  help: SSO provider for oauth2-proxy (admin UIs / BI) — generic OIDC either way
+  choices: [google, microsoft, okta, github, none]
+  default: google
+
+db_source:
+  type: str
+  help: Product DB — in-cluster CloudNativePG, or managed (RDS on AWS). Same DATABASE_URL contract.
+  choices: [cnpg, rds]
+  default: cnpg
+
+prod_profile:
+  type: bool
+  help: Enable prod hardening (Loki->object storage + retention, Valkey password, tightened
+        API firewall, ...) — see prod-hardening-deferred
+  default: false

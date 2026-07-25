@@ -1,0 +1,46 @@
+# ingress-nginx (D-11). Wave 3. On Hetzner the LoadBalancer Service is fulfilled
+# by hcloud-cloud-controller-manager -> a real Hetzner LB (see the CCM in the
+# tofu k3s module). On k3d the Service stays <pending> (no CCM) — the controller
+# still runs, which is all we validate locally.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.15.1
+    helm:
+      values: |
+        controller:
+          service:
+            type: LoadBalancer
+            externalTrafficPolicy: Local
+            annotations:
+              # Consumed by hcloud CCM to provision + shape the Hetzner LB.
+              load-balancer.hetzner.cloud/name: {{ client_name }}-staging-ingress
+              load-balancer.hetzner.cloud/location: nbg1
+              load-balancer.hetzner.cloud/use-private-ip: "true"
+              load-balancer.hetzner.cloud/uses-proxyprotocol: "false"
+              # Keep private-IP TARGETS (firewall-clean) but exclude the LB's
+              # private IP from the Service status, so external-dns publishes
+              # ONLY the public IP (no dead 10.0.x A record).
+              load-balancer.hetzner.cloud/disable-private-ingress: "true"
+          ingressClassResource:
+            default: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,14 @@
+# Prod overlay — deployed to the prod cluster. The image newTag is bumped only
+# via an approved PROMOTION PR (§6.2), never automatically. `git log` of this
+# file is the complete prod deploy history; `git revert` rolls back.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: data
+resources:
+  - ../../base
+  - smoke-job.yaml
+images:
+  - name: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
+    newTag: sha-43942fc # promoted from staging via PR (proven in staging first)
+  - name: ghcr.io/{{ registry_org }}/{{ client_name }}-e2e
+    newTag: sha-0000000 # bumped via PR (prod-via-PR discipline); staging auto-bumps

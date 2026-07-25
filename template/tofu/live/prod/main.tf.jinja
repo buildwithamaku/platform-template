@@ -1,0 +1,32 @@
+module "cluster" {
+  source = "../../modules/cluster-k3s"
+
+  # Token reaches the module so the init node can plant the `hcloud` Secret that
+  # hcloud-cloud-controller-manager uses (it fulfils the ingress LoadBalancer).
+  hcloud_token = var.hcloud_token
+
+  cluster_name = "{{ client_name }}-prod"
+  location     = "{{ region }}"
+
+  # Prod is HA: 3 servers with embedded-etcd quorum (decision D-02).
+  # NOTE: nbg1 does not offer the Intel CX line — use the AMD CPX equivalent
+  # (cpx32 = 4 vCPU / 8 GB, same specs as cx32). CX types would need fsn1/hel1.
+  server_count = 3
+  server_type  = "{{ prod_node_type }}"
+
+  ssh_public_keys   = var.ssh_public_keys
+  api_allowed_cidrs = var.api_allowed_cidrs
+
+  labels = {
+    environment = "prod"
+    part_of     = "{{ client_name }}"
+  }
+}
+
+# Write the kubeconfig next to the root so the acceptance test is a one-liner:
+#   export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
+resource "local_sensitive_file" "kubeconfig" {
+  content         = module.cluster.kubeconfig
+  filename        = "${path.module}/kubeconfig"
+  file_permission = "0600"
+}

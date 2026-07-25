@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: metabase
+resources:
+  - ../../base
+  - ingress.yaml
+# Per-env OAuth redirect URL (must match the OIDC app's authorized redirect URI).
+# Inlined (not a separate partial-Deployment file) so raw kubeconform doesn't try
+# to validate a fragment as a standalone Deployment.
+patches:
+  - patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: oauth2-proxy
+      spec:
+        template:
+          spec:
+            containers:
+              - name: oauth2-proxy
+                env:
+                  - name: OAUTH2_PROXY_REDIRECT_URL
+                    value: https://bi.{{ domain }}/oauth2/callback

@@ -1,0 +1,25 @@
+# Wave 10: Gatus status page (§4.3 synthetic checks). Git-sourced (pins main).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gatus
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "10"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/{{ registry_org }}/{{ platform_repo }}.git
+    targetRevision: main
+    path: clusters/apps/gatus
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

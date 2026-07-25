@@ -1,0 +1,33 @@
+# Answers that reproduce the reference client ("refclient") from this template:
+#   copier copy --data-file refclient.copier-answers.yml --defaults gh:buildwithamaku/platform-template refclient-platform
+# Doubles as the Phase-8 reproducibility proof and the worked example for client #2.
+client_name: refclient
+domain: amakusolutions.com
+registry_org: buildwithamaku
+platform_repo: platform-template
+acme_email: amakudavid01@gmail.com
+
+cloud: hetzner
+region: nbg1
+staging_node_type: cpx22
+prod_node_type: cpx32
+prod_node_count: 3
+gpu: false
+r2_account_id: bda2c3e234aa8153f04b3b8b14c42887
+
+repo_layout: polyrepo
+
+app_backend: true
+app_frontend: false
+app_metabase: true
+
+cap_preview_envs: false
+cap_service_mesh: false
+cap_event_bus: false
+cap_vector_db: false
+cap_model_serving: false
+
+vpn: tailscale
+idp: google
+db_source: cnpg
+prod_profile: false
