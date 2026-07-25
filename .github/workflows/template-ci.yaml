@@ -32,22 +32,34 @@ jobs:
           python-version: "3.12"
       - run: pip install --quiet copier
 
-      - name: Render the refclient from the template
+      - name: Render both cloud variants
         run: |
           copier copy --data-file refclient.copier-answers.yml --defaults --trust \
-            --vcs-ref HEAD . /tmp/render
+            --vcs-ref HEAD . /tmp/render            # hetzner (cluster-k3s)
+          copier copy --data-file examples/digitalocean.copier-answers.yml --defaults --trust \
+            --vcs-ref HEAD . /tmp/render-do         # digitalocean (cluster-doks)
 
-      - name: No stale copier vars in the render
-        # Catches a half-converted template file (e.g. a {{ }} left after the
-        # [< >] delimiter switch) — which kubeconform can't see (valid YAML string,
-        # or inside a shell script). Matches copier VAR NAMES only, so ESO/Go
-        # {{ .x }} and Alertmanager {{ range }} are not false positives.
+      - name: No stale copier vars (both renders)
+        # Catches a half-converted template file (a {{ }} left after the [< >]
+        # switch) — invisible to kubeconform (valid YAML / inside a shell script).
+        # The var list is DERIVED from copier.yml keys, so adding a question
+        # auto-extends the guard. Matches VAR NAMES only, so ESO/Go {{ .x }} and
+        # Alertmanager {{ range }} are not false positives.
         run: |
-          vars='client_name|registry_org|platform_repo|domain|acme_email|region|staging_node_type|prod_node_type|prod_node_count|r2_account_id|repo_layout|app_[a-z]+|cap_[a-z_]+|vpn|idp|db_source|prod_profile|cloud|gpu'
-          if grep -rnE "\{\{ *($vars)" /tmp/render; then
-            echo "::error::stale {{ copier-var }} in the render — a template file was not converted to [< >]"; exit 1
+          vars=$(grep -E '^[a-z][a-zA-Z0-9_]*:' copier.yml | sed 's/:.*//' | paste -sd '|' -)
+          echo "guarding: $vars"
+          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do; then
+            echo "::error::stale {{ copier-var }} in a render — a template file was not converted to [< >]"; exit 1
           fi
           echo "no stale copier vars ✓"
+
+      - name: tofu fmt both rendered infra trees (HCL syntax + formatting)
+        run: |
+          V=1.8.5
+          curl -sSfL "https://github.com/opentofu/opentofu/releases/download/v${V}/tofu_${V}_linux_amd64.zip" -o /tmp/tofu.zip
+          unzip -oq /tmp/tofu.zip -d /tmp/tofubin && sudo install /tmp/tofubin/tofu /usr/local/bin/tofu
+          tofu fmt -check -recursive /tmp/render/tofu
+          tofu fmt -check -recursive /tmp/render-do/tofu
 
       - name: Install kubeconform + kustomize (pinned)
         run: |
