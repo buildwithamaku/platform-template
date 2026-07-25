@@ -11,7 +11,7 @@ set -euo pipefail
 
 # ---- config (override via env) --------------------------------------------
 ARGOCD_CHART_VERSION="${ARGOCD_CHART_VERSION:-10.2.0}"        # argo/argo-cd chart
-PLATFORM_REPO_URL="${PLATFORM_REPO_URL:-https://github.com/{{ registry_org }}/{{ platform_repo }}.git}"
+PLATFORM_REPO_URL="${PLATFORM_REPO_URL:-https://github.com/[< registry_org >]/[< platform_repo >].git}"
 PLATFORM_REPO_REVISION="${PLATFORM_REPO_REVISION:-main}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ESO_NAMESPACE="${ESO_NAMESPACE:-external-secrets}"

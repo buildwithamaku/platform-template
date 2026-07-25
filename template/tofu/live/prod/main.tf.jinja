@@ -5,21 +5,21 @@ module "cluster" {
   # hcloud-cloud-controller-manager uses (it fulfils the ingress LoadBalancer).
   hcloud_token = var.hcloud_token
 
-  cluster_name = "{{ client_name }}-prod"
-  location     = "{{ region }}"
+  cluster_name = "[< client_name >]-prod"
+  location     = "[< region >]"
 
   # Prod is HA: 3 servers with embedded-etcd quorum (decision D-02).
   # NOTE: nbg1 does not offer the Intel CX line — use the AMD CPX equivalent
   # (cpx32 = 4 vCPU / 8 GB, same specs as cx32). CX types would need fsn1/hel1.
   server_count = 3
-  server_type  = "{{ prod_node_type }}"
+  server_type  = "[< prod_node_type >]"
 
   ssh_public_keys   = var.ssh_public_keys
   api_allowed_cidrs = var.api_allowed_cidrs
 
   labels = {
     environment = "prod"
-    part_of     = "{{ client_name }}"
+    part_of     = "[< client_name >]"
   }
 }
 

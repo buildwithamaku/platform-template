@@ -8,7 +8,7 @@
 # Re-enable (and `tofu init -migrate-state`) once the Object Storage bucket exists.
 # terraform {
 #   backend "s3" {
-#     key = "{{ client_name }}/staging/terraform.tfstate"
+#     key = "[< client_name >]/staging/terraform.tfstate"
 #
 #     # Hetzner Object Storage is not AWS, so skip the AWS-specific preflight checks.
 #     region                      = "eu-central-1"

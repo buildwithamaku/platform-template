@@ -37,6 +37,18 @@ jobs:
           copier copy --data-file refclient.copier-answers.yml --defaults --trust \
             --vcs-ref HEAD . /tmp/render
 
+      - name: No stale copier vars in the render
+        # Catches a half-converted template file (e.g. a {{ }} left after the
+        # [< >] delimiter switch) — which kubeconform can't see (valid YAML string,
+        # or inside a shell script). Matches copier VAR NAMES only, so ESO/Go
+        # {{ .x }} and Alertmanager {{ range }} are not false positives.
+        run: |
+          vars='client_name|registry_org|platform_repo|domain|acme_email|region|staging_node_type|prod_node_type|prod_node_count|r2_account_id|repo_layout|app_[a-z]+|cap_[a-z_]+|vpn|idp|db_source|prod_profile|cloud|gpu'
+          if grep -rnE "\{\{ *($vars)" /tmp/render; then
+            echo "::error::stale {{ copier-var }} in the render — a template file was not converted to [< >]"; exit 1
+          fi
+          echo "no stale copier vars ✓"
+
       - name: Install kubeconform + kustomize (pinned)
         run: |
           curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform

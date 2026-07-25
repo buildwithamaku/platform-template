@@ -27,13 +27,13 @@ spec:
         runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
       containers:
         - name: migrate
-          image: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
+          image: ghcr.io/[< registry_org >]/[< client_name >]-backend
           args: ["migrate"]
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ client_name }}-db-app
+                  name: [< client_name >]-db-app
                   key: uri
           resources:
             requests: { cpu: 25m, memory: 48Mi }

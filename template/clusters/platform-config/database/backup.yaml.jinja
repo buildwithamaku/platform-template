@@ -1,5 +1,5 @@
 # R2 credentials for CNPG's Barman backups, delivered by ESO from Infisical
-# (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY at /{{ client_name }}) into the `data` ns.
+# (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY at /[< client_name >]) into the `data` ns.
 apiVersion: external-secrets.io/v1
 kind: ExternalSecret
 metadata:
@@ -26,10 +26,10 @@ spec:
 apiVersion: postgresql.cnpg.io/v1
 kind: ScheduledBackup
 metadata:
-  name: {{ client_name }}-db-daily
+  name: [< client_name >]-db-daily
   namespace: data
 spec:
   schedule: "0 0 3 * * *"
   backupOwnerReference: self
   cluster:
-    name: {{ client_name }}-db
+    name: [< client_name >]-db

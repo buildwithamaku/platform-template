@@ -3,7 +3,7 @@
 # prevents) — the new version is already live in staging when it runs; a failure
 # marks the staging sync Failed + pages, so a regression is caught in staging
 # before anyone opens a promotion PR to prod. No args = full suite. (uses
-# ghcr-pull — {{ client_name }}-e2e must be authorized for that pull token.)
+# ghcr-pull — [< client_name >]-e2e must be authorized for that pull token.)
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -30,7 +30,7 @@ spec:
         runAsUser: 1000 # node user in node:20-slim
       containers:
         - name: e2e
-          image: ghcr.io/{{ registry_org }}/{{ client_name }}-e2e
+          image: ghcr.io/[< registry_org >]/[< client_name >]-e2e
           env:
             - { name: BASE_URL, value: "http://backend.data.svc" }
             - { name: CI, value: "true" }

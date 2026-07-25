@@ -8,9 +8,9 @@ resources:
 - ../../base
 - e2e-job.yaml
 images:
-- name: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
-  newName: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
+- name: ghcr.io/[< registry_org >]/[< client_name >]-backend
+  newName: ghcr.io/[< registry_org >]/[< client_name >]-backend
   newTag: sha-43942fc
-- name: ghcr.io/{{ registry_org }}/{{ client_name }}-e2e
-  newName: ghcr.io/{{ registry_org }}/{{ client_name }}-e2e
+- name: ghcr.io/[< registry_org >]/[< client_name >]-e2e
+  newName: ghcr.io/[< registry_org >]/[< client_name >]-e2e
   newTag: sha-cc53077
