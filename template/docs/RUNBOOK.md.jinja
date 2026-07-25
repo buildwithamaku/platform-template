@@ -1,0 +1,124 @@
+# [< client_name >] platform — RUNBOOK
+
+Operating manual for the **[< client_name >]** platform (stamped from the platform
+factory). Two planes: **Plane 1** = infra (OpenTofu → clusters); **Plane 2** =
+GitOps (ArgoCD reconciles `clusters/` from this repo). After one imperative
+bootstrap, nothing is touched by hand — every change is a git commit.
+
+- Domain: `[< domain >]` · Platform repo: `github.com/[< registry_org >]/[< platform_repo >]`
+- Images: `ghcr.io/[< registry_org >]/[< client_name >]-<app>` (git-SHA tags only)
+- Admin UIs (ArgoCD, Grafana, Redis Insight): **tailnet only**, never public
+
+---
+
+## 1. Onboarding — stamp to serving traffic (target: < 1 working day)
+
+### 1.1 Accounts to have first
+- **Cloud** account + API token ([< cloud >]).
+- **Domain** `[< domain >]` with DNS on **Cloudflare** (API token for cert-manager DNS-01 + external-dns).
+- **GitHub**: this platform repo + app repo(s); the **[< registry_org >]-deployer** GitHub App (id + private key) for cross-repo tag bumps.
+- **Infisical**: one machine identity per cluster (the ONLY planted secret).
+- **Cloudflare R2** bucket `[< client_name >]-pg-backups` + access keys (Postgres PITR).
+- **Slack** webhook (Alertmanager).
+- **SSO IdP** ([< idp >]) OAuth app for the admin UIs / BI.
+- **Tailscale** ([< vpn >]) OAuth client tagged `tag:k8s-operator` + ACL grant.
+
+### 1.2 Populate Infisical (`/[< client_name >]`)
+Every secret lives here; ESO syncs them in. Required keys:
+`GHCR_USERNAME`, `GHCR_PULL_TOKEN`, `CLOUDFLARE_API_TOKEN`, R2 `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`,
+`SLACK_WEBHOOK_URL`, `METABASE_PRODUCT_DB_RO_PASSWORD`, `METABASE_OAUTH_CLIENT_ID`/`_SECRET`/`_COOKIE_SECRET`
+(cookie = `openssl rand -hex 16`), `TS_OAUTH_CLIENT_ID`/`_SECRET`, plus app secrets.
+
+### 1.3 Provision the cluster (Plane 1)
+```bash
+cd tofu/live/staging
+# Pick a node type that is ACTUALLY sold in the region first:
+HCLOUD_TOKEN=… ../../../scripts/hetzner-server-types.sh [< region >]
+# Fill terraform.tfvars from terraform.tfvars.example (SSH key + your current IP in
+# api_allowed_cidrs — it gates SSH+API; a stale IP => provisioner SSH times out).
+export TF_VAR_hcloud_token=…            # or in .env
+tofu init && tofu apply                 # ~3 min; writes ./kubeconfig
+export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
+```
+> With Metabase enabled, staging needs **≥ 16 GB** (4 GB OOMs the stack). See §7.
+
+### 1.4 Bootstrap GitOps (Plane 2 — the one imperative step, §6.1)
+```bash
+export KUBECONFIG=…/kubeconfig
+export INFISICAL_CLIENT_ID=… INFISICAL_CLIENT_SECRET=… GIT_TOKEN=$(gh auth token)
+./bootstrap.sh    # installs ArgoCD, plants the Infisical identity + app-of-apps root
+kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
+```
+
+### 1.5 Verify (acceptance)
+- `kubectl -n argocd get applications` → all Synced/Healthy.
+- `https://<app>.[< domain >]` serves with a green lock (cert-manager + external-dns).
+- Grafana/ArgoCD/Redis Insight resolve **only over the tailnet**.
+- Metabase queries prod data read-only; a write is rejected.
+- A broken deploy is flagged by the prod smoke gate within minutes (§6).
+
+---
+
+## 2. Day-2 — shipping changes
+- **Staging is automatic**: merge to an app repo → CI builds a SHA-tagged image → the
+  deployer App bumps `overlays/staging` → ArgoCD deploys → PreSync migration → PostSync full e2e.
+- **Prod is a promotion PR**: bump `clusters/apps/<app>/overlays/prod/kustomization.yaml`
+  to the proven staging SHA → review → merge → ArgoCD deploys → PostSync `@smoke`.
+- **Rollback = `git revert`** of the tag-bump commit. There is no other rollback.
+- Devs never touch the cluster; `git log overlays/prod/` is the prod history.
+
+## 3. The 2 am debug chain (all over the tailnet, no SSH)
+Slack page → **Grafana** → Loki `{app="<app>"} |= "error"` → the log's `trace_id` →
+**Tempo** trace → slow span → **Redis Insight** for cache. ArgoCD UI answers "what is deployed now".
+
+## 4. Secrets & rotation
+Model: **one planted secret** (the Infisical machine identity); everything else is ESO-synced
+from Infisical, so **rotation = update the value in Infisical** (ESO re-syncs ≤ refreshInterval;
+`reloader` rolls consumers). Rotate the Infisical identity by re-running the relevant part of
+`bootstrap.sh` with new creds. Never commit a secret — `gitleaks` (template-ci + build-and-bump) blocks it.
+
+## 5. Disaster recovery
+- **Postgres (data loss / PITR)**: CNPG restores from the R2 base backups + WAL. Bootstrap a new
+  Cluster with `recovery` from `s3://[< client_name >]-pg-backups`; pick a target time. Test this quarterly.
+- **Whole cluster lost**: re-run §1.3–1.4 (tofu apply + bootstrap). ArgoCD rebuilds everything from
+  git; data comes back via the CNPG recovery above. The platform is reproducible; only the data is precious.
+
+## 6. Incident response — alerts
+- Tiers: `severity: critical` → Slack **pages**; `warning` → **tickets**.
+- **Post-deploy smoke/e2e failure** (`BackendPostDeploySmokeFailed`): the just-deployed version is
+  **live and bad** (PostSync runs post-rollout) — **`git revert` the tag**. First rule out tooling:
+  `kubectl -n data get pods -l app.kubernetes.io/name=backend-smoke` (ImagePullBackOff = e2e-image
+  problem, not a bad deploy).
+- **k3s first-boot false pages** (KubeAPI/Kubelet/TargetDown) on a fresh cluster: expected while
+  Prometheus stabilizes; silence with `amtool silence add alertname=~".+"` if noisy.
+
+## 7. Prod hardening checklist (staging ships smaller)
+- [ ] **Loki → R2 object storage** (default is a 3 Gi PVC / 72 h retention — lost on node loss).
+- [ ] **Valkey `requirepass`** (Redis Insight has no app-auth of its own).
+- [ ] **Tighten `api_allowed_cidrs`** to the tailnet once the Tailscale API proxy is live.
+- [ ] **Tailscale ACL grant** restricting who can *reach* `tag:k8s` devices (tag = creation, not access).
+- [ ] Prod `refclient-e2e` image tag bumped via PR + the ghcr package authorized for `ghcr-pull`.
+- [ ] CNPG operator on 1.30 (in-tree barman) — migrate to the Barman Cloud plugin before bumping to 1.31.
+
+## 8. Migrating a client off a PaaS (Railway/Render/Heroku)
+1. Inventory their services, databases, env vars, domains.
+2. Stamp: services → `clusters/apps/<svc>/`, DBs → CNPG clusters, env vars → Infisical.
+3. **App-contract pass** (the real work, per app): Dockerfile (multi-stage, non-root, `$PORT`),
+   `/healthz`+`/readyz`, structured JSON logs w/ `trace_id`, `/metrics`+ServiceMonitor, migrations
+   as a command, OTel to the collector.
+4. **Data**: `pg_dump` → restore into CNPG (maintenance window), or logical replication for near-zero-downtime.
+5. **Cutover**: validate on staging, then external-dns flips DNS → green-lock.
+
+## 9. Offboarding / handoff
+Each client is self-contained (own platform repo + clusters + Infisical identity), so hand-off = transfer
+repo ownership + the cloud/Infisical/Tailscale accounts, or keep operating it as a managed service.
+To decommission: `tofu destroy` **after** draining `type: LoadBalancer` services (the CCM ingress LB is
+NOT tofu-tracked — sweep the cloud API for orphan LBs/volumes or they keep billing).
+
+## 10. Gotchas quick-reference
+- **Hetzner server types vary by location + stock** (`cpx41` isn't sold in nbg1; run `hetzner-server-types.sh`).
+- **`tofu destroy` leaves the CCM ingress LB** (orphan, still billing) — delete via API after.
+- **external-dns `txt-owner-id` must be unique per cluster** or two clusters sharing a Cloudflare zone
+  delete each other's records.
+- **One Slack webhook = all clusters page it** — silence/tear down dev clusters before an e2e elsewhere.
+- **oauth2-proxy cookie secret** must be 16/24/32 bytes (`openssl rand -hex 16`).
