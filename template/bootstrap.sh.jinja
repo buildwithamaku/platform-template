@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# bootstrap.sh — plant ArgoCD + the single root secret, then hand the cluster to Git.
+#
+# This is the ONLY imperative step in Plane 2 (§6.1). It is idempotent: re-running
+# converges. After it completes, no human touches the cluster — ArgoCD reconciles
+# clusters/platform/ from Git in sync-wave order.
+#
+# Required tools: kubectl, helm (both talk to the CURRENT kube-context).
+# Secrets are supplied at runtime via env vars and NEVER committed.
+set -euo pipefail
+
+# ---- config (override via env) --------------------------------------------
+ARGOCD_CHART_VERSION="${ARGOCD_CHART_VERSION:-10.2.0}"        # argo/argo-cd chart
+PLATFORM_REPO_URL="${PLATFORM_REPO_URL:-https://github.com/{{ registry_org }}/{{ platform_repo }}.git}"
+PLATFORM_REPO_REVISION="${PLATFORM_REPO_REVISION:-main}"
+ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
+ESO_NAMESPACE="${ESO_NAMESPACE:-external-secrets}"
+
+# ---- secrets (runtime only, never committed) ------------------------------
+GIT_TOKEN="${GIT_TOKEN:-}"                          # read token for the (private) platform repo
+INFISICAL_CLIENT_ID="${INFISICAL_CLIENT_ID:-}"      # Infisical machine identity (universal auth)
+INFISICAL_CLIENT_SECRET="${INFISICAL_CLIENT_SECRET:-}"
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+need() { command -v "$1" >/dev/null 2>&1 || { echo "FATAL: missing required tool: $1" >&2; exit 1; }; }
+need kubectl; need helm
+
+echo "==> context: $(kubectl config current-context)"
+
+echo "==> [1/4] ArgoCD (chart ${ARGOCD_CHART_VERSION})"
+helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
+helm repo update argo >/dev/null
+helm upgrade --install argocd argo/argo-cd \
+  --namespace "$ARGOCD_NAMESPACE" --create-namespace \
+  --version "$ARGOCD_CHART_VERSION" \
+  --set 'configs.params.server\.insecure=true' \
+  --wait --timeout 10m
+
+echo "==> [2/4] platform repo credential"
+if [[ -n "$GIT_TOKEN" ]]; then
+  kubectl apply -f - <<YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: platform-repo
+  namespace: ${ARGOCD_NAMESPACE}
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: ${PLATFORM_REPO_URL}
+  username: git
+  password: ${GIT_TOKEN}
+YAML
+else
+  echo "    GIT_TOKEN unset — skipping (only needed for a PRIVATE platform repo)."
+fi
+
+echo "==> [3/4] Infisical machine identity (the ONE planted secret, §6.1)"
+kubectl create namespace "$ESO_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+if [[ -n "$INFISICAL_CLIENT_ID" && -n "$INFISICAL_CLIENT_SECRET" ]]; then
+  kubectl -n "$ESO_NAMESPACE" create secret generic infisical-universal-auth \
+    --from-literal=clientId="$INFISICAL_CLIENT_ID" \
+    --from-literal=clientSecret="$INFISICAL_CLIENT_SECRET" \
+    --dry-run=client -o yaml | kubectl apply -f -
+else
+  echo "    INFISICAL_CLIENT_ID/SECRET unset — ClusterSecretStore will report NotReady"
+  echo "    until the credential is planted. ESO/Reloader still install fine."
+fi
+
+echo "==> [4/4] root app-of-apps -> ${PLATFORM_REPO_URL}@${PLATFORM_REPO_REVISION}"
+sed -e "s|__REPO_URL__|${PLATFORM_REPO_URL}|g" \
+    -e "s|__REVISION__|${PLATFORM_REPO_REVISION}|g" \
+    "${here}/clusters/bootstrap/app-of-apps.yaml" \
+  | kubectl apply -n "$ARGOCD_NAMESPACE" -f -
+
+cat <<EOF
+
+==> done. The cluster is now Git-driven. Watch reconciliation:
+    kubectl -n ${ARGOCD_NAMESPACE} get applications -w
+ArgoCD admin password:
+    kubectl -n ${ARGOCD_NAMESPACE} get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d; echo
+UI (port-forward): kubectl -n ${ARGOCD_NAMESPACE} port-forward svc/argocd-server 8080:443
+EOF

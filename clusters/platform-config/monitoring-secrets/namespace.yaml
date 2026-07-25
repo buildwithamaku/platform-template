@@ -1,9 +1,0 @@
-# Created early (wave 1) so the Slack ExternalSecret below — and the secret
-# Alertmanager mounts — exist before kube-prometheus-stack (wave 8) starts.
-# kube-prometheus-stack also has CreateNamespace=true; creating it twice is fine.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
-  labels:
-    app.kubernetes.io/part-of: refclient

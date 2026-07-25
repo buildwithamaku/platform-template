@@ -1,0 +1,29 @@
+# Wave 3 (per plan order: ESO -> cert-manager -> ingress -> Tailscale): the
+# tailscale namespace + the operator OAuth secret (ESO) + the ArgoCD tailnet
+# Ingress. Before the operator (wave 4) so operator-oauth exists at its startup.
+# Git-sourced (pins main). Applies across namespaces (tailscale + argocd) — like
+# the security app — via explicit namespaces on the resources.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tailscale-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/{{ registry_org }}/{{ platform_repo }}.git
+    targetRevision: main
+    path: clusters/platform-config/tailscale
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: tailscale
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

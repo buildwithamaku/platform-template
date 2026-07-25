@@ -1,0 +1,27 @@
+# Wave 6: the reference Postgres Cluster + its R2 backup config, after the CNPG
+# operator (wave 5) and ESO (wave 0) exist. Git-sourced, so repoURL/targetRevision
+# are literal (pins main) — see clusters/README.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: database
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "6"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/{{ registry_org }}/{{ platform_repo }}.git
+    targetRevision: main
+    path: clusters/platform-config/database
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
