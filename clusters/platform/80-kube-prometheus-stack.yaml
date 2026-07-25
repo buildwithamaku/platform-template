@@ -96,6 +96,21 @@ spec:
                     title: ':rotating_light: PAGE [{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.namespace }})'
                     text: "{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}\n{{ end }}"
         grafana:
+          # Tailscale-only access (D-09): a tailscale-class Ingress publishes Grafana
+          # to the tailnet as https://grafana (operator-provisioned TLS — uniform
+          # with argocd/redisinsight). No public ingress. root_url is set so Grafana
+          # generates correct absolute links/redirects behind MagicDNS.
+          ingress:
+            enabled: true
+            ingressClassName: tailscale
+            hosts:
+              - grafana
+            tls:
+              - hosts:
+                  - grafana
+          grafana.ini:
+            server:
+              root_url: "https://grafana/"
           defaultDashboardsTimezone: browser
           sidecar:
             dashboards:

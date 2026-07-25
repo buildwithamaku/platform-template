@@ -1,6 +1,6 @@
-# Wave 6: Valkey cache. Git-sourced (pins main — see clusters/README.md).
-# Redis Insight (the GUI) is deferred with Tailscale (D-09) — it must be
-# admin-only, never public ingress.
+# Wave 6: Valkey cache + Redis Insight GUI (redisinsight.yaml). Git-sourced (pins
+# main — see clusters/README.md). Redis Insight is admin-only: tailnet-exposed via
+# the Tailscale operator (D-09), never public ingress.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
