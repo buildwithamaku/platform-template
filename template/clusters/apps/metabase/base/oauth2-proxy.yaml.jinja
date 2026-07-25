@@ -13,7 +13,7 @@ metadata:
   name: oauth2-proxy
   labels:
     app.kubernetes.io/name: oauth2-proxy
-    app.kubernetes.io/part-of: {{ client_name }}
+    app.kubernetes.io/part-of: [< client_name >]
   annotations:
     reloader.stakater.com/auto: "true"
 spec:
@@ -25,7 +25,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: oauth2-proxy
-        app.kubernetes.io/part-of: {{ client_name }}
+        app.kubernetes.io/part-of: [< client_name >]
     spec:
       securityContext:
         runAsNonRoot: true
@@ -38,7 +38,7 @@ spec:
             - --upstream=http://metabase:3000
             - --provider=oidc
             - --oidc-issuer-url=https://accounts.google.com
-            - --email-domain={{ domain }} # agency allow-list; Phase-8 variable
+            - --email-domain=[< domain >] # agency allow-list; Phase-8 variable
             - --cookie-secure=true
             - --reverse-proxy=true
             - --skip-provider-button=true

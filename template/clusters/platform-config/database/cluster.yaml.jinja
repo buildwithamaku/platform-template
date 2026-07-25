@@ -1,5 +1,5 @@
 # Reference Postgres Cluster (D-05): 3 instances = 1 primary + 2 replicas with
-# automatic failover. CNPG generates the `{{ client_name }}-db-app` Secret (username,
+# automatic failover. CNPG generates the `[< client_name >]-db-app` Secret (username,
 # password, dbname, and a ready-made connection `uri`) — that is the app's
 # DATABASE_URL, so the source is swappable (RDS on AWS) without app changes.
 #
@@ -15,7 +15,7 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: {{ client_name }}-db
+  name: [< client_name >]-db
   namespace: data
 spec:
   instances: 3
@@ -43,10 +43,10 @@ spec:
     retentionPolicy: 7d
     barmanObjectStore:
       # Bucket root only — CNPG nests under the serverName (= cluster name), so
-      # data lands at s3://{{ client_name }}-pg-backups/{{ client_name }}-db/{base,wals}. Do NOT
-      # add the cluster name here or it double-nests ({{ client_name }}-db/{{ client_name }}-db).
-      destinationPath: s3://{{ client_name }}-pg-backups
-      endpointURL: https://{{ r2_account_id }}.r2.cloudflarestorage.com
+      # data lands at s3://[< client_name >]-pg-backups/[< client_name >]-db/{base,wals}. Do NOT
+      # add the cluster name here or it double-nests ([< client_name >]-db/[< client_name >]-db).
+      destinationPath: s3://[< client_name >]-pg-backups
+      endpointURL: https://[< r2_account_id >].r2.cloudflarestorage.com
       s3Credentials:
         accessKeyId:
           name: r2-credentials

@@ -8,7 +8,7 @@ resources:
   - ../../base
   - smoke-job.yaml
 images:
-  - name: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
+  - name: ghcr.io/[< registry_org >]/[< client_name >]-backend
     newTag: sha-43942fc # promoted from staging via PR (proven in staging first)
-  - name: ghcr.io/{{ registry_org }}/{{ client_name }}-e2e
+  - name: ghcr.io/[< registry_org >]/[< client_name >]-e2e
     newTag: sha-0000000 # bumped via PR (prod-via-PR discipline); staging auto-bumps

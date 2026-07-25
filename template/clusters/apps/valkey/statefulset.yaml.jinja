@@ -9,7 +9,7 @@ metadata:
   namespace: cache
   labels:
     app.kubernetes.io/name: valkey
-    app.kubernetes.io/part-of: {{ client_name }}
+    app.kubernetes.io/part-of: [< client_name >]
 spec:
   serviceName: valkey
   replicas: 1
@@ -20,7 +20,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: valkey
-        app.kubernetes.io/part-of: {{ client_name }}
+        app.kubernetes.io/part-of: [< client_name >]
     spec:
       securityContext:
         runAsNonRoot: true

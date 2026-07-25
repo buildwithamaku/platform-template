@@ -1,5 +1,5 @@
 # Reference backend Deployment. Consumes DATABASE_URL from the CNPG-generated
-# app secret ({{ client_name }}-db-app.uri) — the §5.4 contract, source-swappable. The
+# app secret ([< client_name >]-db-app.uri) — the §5.4 contract, source-swappable. The
 # reloader annotation rolls it when that secret rotates. Image TAG is set by the
 # overlay (bumped by CI); base leaves it bare.
 apiVersion: apps/v1
@@ -8,7 +8,7 @@ metadata:
   name: backend
   labels:
     app.kubernetes.io/name: backend
-    app.kubernetes.io/part-of: {{ client_name }}
+    app.kubernetes.io/part-of: [< client_name >]
   annotations:
     reloader.stakater.com/auto: "true"
 spec:
@@ -20,7 +20,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: backend
-        app.kubernetes.io/part-of: {{ client_name }}
+        app.kubernetes.io/part-of: [< client_name >]
     spec:
       imagePullSecrets:
         - name: ghcr-pull
@@ -29,7 +29,7 @@ spec:
         runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
       containers:
         - name: backend
-          image: ghcr.io/{{ registry_org }}/{{ client_name }}-backend
+          image: ghcr.io/[< registry_org >]/[< client_name >]-backend
           ports:
             - { containerPort: 8080, name: http }
           env:
@@ -38,7 +38,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ client_name }}-db-app
+                  name: [< client_name >]-db-app
                   key: uri
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector-opentelemetry-collector.monitoring:4318

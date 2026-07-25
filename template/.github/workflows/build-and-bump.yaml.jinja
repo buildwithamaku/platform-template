@@ -1,5 +1,5 @@
 # Reusable delivery workflow (D-06/D-10). App repos call this via workflow_call:
-# it builds+tests+scans+pushes the image, then (as the buildwithamaku-deployer
+# it builds+tests+scans+pushes the image, then (as the [< registry_org >]-deployer
 # GitHub App) commits the image-tag bump to this platform repo's staging overlay.
 # App repos NEVER touch a cluster; every deploy is an explicit git commit here.
 name: build-and-bump
@@ -12,13 +12,13 @@ on:
         required: true
         type: string
       image:
-        description: "ghcr image repo, e.g. ghcr.io/buildwithamaku/refclient-backend"
+        description: "ghcr image repo, e.g. ghcr.io/[< registry_org >]/[< client_name >]-backend"
         required: true
         type: string
       platform_repo:
         required: false
         type: string
-        default: buildwithamaku/platform-template
+        default: [< registry_org >]/[< platform_repo >]
     secrets:
       deployer_app_id:
         required: true
@@ -66,8 +66,8 @@ jobs:
         with:
           app-id: ${{ secrets.deployer_app_id }}
           private-key: ${{ secrets.deployer_private_key }}
-          owner: buildwithamaku
-          repositories: platform-template
+          owner: [< registry_org >]
+          repositories: [< platform_repo >]
       - uses: actions/checkout@v4
         with:
           repository: ${{ inputs.platform_repo }}
@@ -82,7 +82,7 @@ jobs:
       # contents:write (GitHub can't scope below repo). Real protection —
       # protected main + the `production` environment's required reviewers —
       # needs a public repo or a paid tier; on a private free plan those APIs
-      # 403 and cannot be enabled. When you harden: add buildwithamaku-deployer
+      # 403 and cannot be enabled. When you harden: add [< registry_org >]-deployer
       # to the branch-protection bypass list or these staging pushes start failing.
       - name: Bump staging tag + commit (rebase-retry, no-op safe)
         run: |

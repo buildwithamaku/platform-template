@@ -5,7 +5,7 @@ metadata:
   namespace: monitoring
   labels:
     app.kubernetes.io/name: gatus
-    app.kubernetes.io/part-of: {{ client_name }}
+    app.kubernetes.io/part-of: [< client_name >]
 spec:
   replicas: 1
   selector:
@@ -15,7 +15,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: gatus
-        app.kubernetes.io/part-of: {{ client_name }}
+        app.kubernetes.io/part-of: [< client_name >]
     spec:
       securityContext:
         runAsNonRoot: true

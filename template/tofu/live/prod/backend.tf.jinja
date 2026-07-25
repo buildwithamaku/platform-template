@@ -6,7 +6,7 @@
 # default local backend, then migrate state once the bucket exists.
 terraform {
   backend "s3" {
-    key = "{{ client_name }}/prod/terraform.tfstate"
+    key = "[< client_name >]/prod/terraform.tfstate"
 
     # Hetzner Object Storage is not AWS, so skip the AWS-specific preflight checks.
     region                      = "eu-central-1"

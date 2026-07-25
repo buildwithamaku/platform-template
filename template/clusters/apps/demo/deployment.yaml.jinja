@@ -11,7 +11,7 @@ metadata:
     reloader.stakater.com/auto: "true"
   labels:
     app.kubernetes.io/name: demo
-    app.kubernetes.io/part-of: {{ client_name }}
+    app.kubernetes.io/part-of: [< client_name >]
     env: staging
 spec:
   replicas: 1
@@ -22,7 +22,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: demo
-        app.kubernetes.io/part-of: {{ client_name }}
+        app.kubernetes.io/part-of: [< client_name >]
         env: staging
     spec:
       containers:

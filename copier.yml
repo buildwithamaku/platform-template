@@ -13,6 +13,16 @@ _min_copier_version: "9.0.0"
 _subdirectory: template
 _templates_suffix: .jinja
 
+# Template vars are [< var >] (blocks [% %], comments [# #]) so copier NEVER
+# collides with GitHub Actions ${{ }}, shell [[ ]] tests, or Go/Helm/ESO {{ }}.
+_envops:
+  block_start_string: "[%"
+  block_end_string: "%]"
+  variable_start_string: "[<"
+  variable_end_string: ">]"
+  comment_start_string: "[#"
+  comment_end_string: "#]"
+
 # Never stamp these into a client repo: build/state artifacts and the refclient's
 # own local secrets. (copier does not read .gitignore.) terraform.tfvars is
 # per-client + secret — the client fills it from terraform.tfvars.example.
@@ -34,9 +44,9 @@ client_name:
   type: str
   help: Short client slug — lowercase, used in cluster names, k8s labels, Infisical path
   validator: >-
-    {% if not (client_name | regex_search('^[a-z][a-z0-9-]{1,30}$')) %}
+    [% if not (client_name | regex_search('^[a-z][a-z0-9-]{1,30}$')) %]
     must be lowercase alphanumeric/hyphen, starting with a letter
-    {% endif %}
+    [% endif %]
 
 domain:
   type: str
@@ -45,12 +55,12 @@ domain:
 registry_org:
   type: str
   help: GitHub/GHCR org that hosts the platform repo + app images
-  default: "{{ client_name }}"
+  default: "[< client_name >]"
 
 platform_repo:
   type: str
   help: Name of the client's platform repo (ArgoCD reconciles it). refclient's is "platform-template".
-  default: "{{ client_name }}-platform"
+  default: "[< client_name >]-platform"
 
 acme_email:
   type: str
@@ -86,7 +96,7 @@ staging_node_type:
     Staging node instance type. Metabase needs >= 16GB (Phase-7 proved cpx22/4GB
     OOMs the stack), so the default is cpx42 when Metabase is on. Run
     scripts/hetzner-server-types.sh <region> to confirm it's sold there.
-  default: "{% if app_metabase %}cpx42{% else %}cpx22{% endif %}"
+  default: "[% if app_metabase %]cpx42[% else %]cpx22[% endif %]"
 
 prod_node_type:
   type: str

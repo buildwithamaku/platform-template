@@ -11,10 +11,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - bi.staging.{{ domain }}
+        - bi.staging.[< domain >]
       secretName: metabase-tls
   rules:
-    - host: bi.staging.{{ domain }}
+    - host: bi.staging.[< domain >]
       http:
         paths:
           - path: /

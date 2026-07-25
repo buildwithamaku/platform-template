@@ -63,8 +63,8 @@ The Helm-based platform apps (ESO, Reloader) validate on any branch immediately.
    `platform-config/infisical/cluster-secret-store.yaml`.
 3. Add a **machine identity** (Universal Auth), grant it read on the project →
    copy its Client ID / Client Secret into the env vars above.
-4. In the **Staging** environment, create a folder `{{ client_name }}` and add a secret
-   `GREETING` = `hello-world` inside it (so its path is `/{{ client_name }}/GREETING`).
+4. In the **Staging** environment, create a folder `[< client_name >]` and add a secret
+   `GREETING` = `hello-world` inside it (so its path is `/[< client_name >]/GREETING`).
 
 ## Acceptance test (§6.4)
 

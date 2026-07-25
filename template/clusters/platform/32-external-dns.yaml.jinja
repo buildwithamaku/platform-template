@@ -24,9 +24,9 @@ spec:
         sources:
           - ingress
         policy: sync
-        txtOwnerId: {{ client_name }}-staging
+        txtOwnerId: [< client_name >]-staging
         domainFilters:
-          - {{ domain }}
+          - [< domain >]
         env:
           - name: CF_API_TOKEN
             valueFrom:

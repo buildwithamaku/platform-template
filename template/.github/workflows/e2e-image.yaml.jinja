@@ -32,7 +32,7 @@ jobs:
         with:
           context: ./e2e
           push: true
-          tags: ghcr.io/buildwithamaku/refclient-e2e:${{ steps.tag.outputs.tag }}
+          tags: ghcr.io/[< registry_org >]/[< client_name >]-e2e:${{ steps.tag.outputs.tag }}
 
   bump:
     needs: build
@@ -50,7 +50,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          img=ghcr.io/buildwithamaku/refclient-e2e
+          img=ghcr.io/[< registry_org >]/[< client_name >]-e2e
           for attempt in 1 2 3 4 5; do
             git fetch -q origin main && git reset -q --hard origin/main
             ( cd clusters/apps/backend/overlays/staging \

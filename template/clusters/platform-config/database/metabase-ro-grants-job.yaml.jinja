@@ -3,7 +3,7 @@
 #
 # CNPG's managed.roles creates the ROLE but not privileges on database objects,
 # so this hook Job connects as `appuser` (the appdb owner, via the CNPG-generated
-# {{ client_name }}-db-app secret) and grants SELECT-only. ALTER DEFAULT PRIVILEGES makes
+# [< client_name >]-db-app secret) and grants SELECT-only. ALTER DEFAULT PRIVILEGES makes
 # future tables readable too, so new migrations don't silently break BI. There is
 # deliberately no INSERT/UPDATE/DELETE/CREATE grant — the role can only read.
 #
@@ -61,7 +61,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: {{ client_name }}-db-app # appuser / owner of appdb
+                  name: [< client_name >]-db-app # appuser / owner of appdb
                   key: uri
           resources:
             requests: { cpu: 25m, memory: 48Mi }

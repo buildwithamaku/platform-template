@@ -25,7 +25,7 @@ spec:
             externalTrafficPolicy: Local
             annotations:
               # Consumed by hcloud CCM to provision + shape the Hetzner LB.
-              load-balancer.hetzner.cloud/name: {{ client_name }}-staging-ingress
+              load-balancer.hetzner.cloud/name: [< client_name >]-staging-ingress
               load-balancer.hetzner.cloud/location: nbg1
               load-balancer.hetzner.cloud/use-private-ip: "true"
               load-balancer.hetzner.cloud/uses-proxyprotocol: "false"
