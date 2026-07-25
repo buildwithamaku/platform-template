@@ -1,0 +1,16 @@
+# gitleaks config for the template repo. Extends the default rules; allowlists
+# non-secret template placeholders so the scan blocks real leaks without flak.
+title = "platform-template"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "template placeholders + non-secret identifiers"
+paths = [
+  # *.example files are fill-in-the-blank placeholders (ssh key stub, state bucket).
+  '''.*\.example$''',
+  # copier answers hold non-secret ids only (Cloudflare R2 account id, org names) —
+  # every real secret is delivered via ESO/Infisical, never git.
+  '''refclient\.copier-answers\.yml''',
+]
