@@ -69,14 +69,22 @@ acme_email:
 # ── Cloud / infra ───────────────────────────────────────────────────────────
 cloud:
   type: str
-  help: Cloud provider for the clusters
-  choices: [hetzner, aws, hostinger]
+  help: >-
+    Cloud provider. hetzner = self-managed k3s HA (cluster-k3s); digitalocean =
+    managed DOKS control plane + node pools (cluster-doks).
+  choices: [hetzner, digitalocean]
   default: hetzner
 
 region:
   type: str
-  help: Region/location (hetzner nbg1|fsn1|hel1 · aws eu-central-1 · ...)
+  help: Region/location (hetzner nbg1|fsn1|hel1 · digitalocean fra1|nyc1|ams3 · ...)
   default: nbg1
+
+k8s_version:
+  type: str
+  help: DOKS Kubernetes version prefix (digitalocean only; e.g. "1.31." picks the latest 1.31 patch)
+  default: "1.31."
+  when: "[< cloud == 'digitalocean' >]"
 
 # ── Reference apps (asked before node sizing: Metabase needs a bigger staging node)
 app_backend:
@@ -163,8 +171,8 @@ idp:
 
 db_source:
   type: str
-  help: Product DB — in-cluster CloudNativePG, or managed (RDS on AWS). Same DATABASE_URL contract.
-  choices: [cnpg, rds]
+  help: Product DB — in-cluster CloudNativePG, or managed DO Managed Postgres. Same DATABASE_URL contract.
+  choices: [cnpg, do-managed]
   default: cnpg
 
 prod_profile:

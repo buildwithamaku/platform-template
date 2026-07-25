@@ -1,3 +1,4 @@
+[% if cloud == "hetzner" %]
 module "cluster" {
   source = "../../modules/cluster-k3s"
 
@@ -8,12 +9,9 @@ module "cluster" {
   cluster_name = "[< client_name >]-staging"
   location     = "[< region >]"
 
-  # Staging is intentionally small: single node, no HA. Prod uses server_count = 3.
-  # NOTE: nbg1 does not offer the Intel CX line — use the AMD CPX equivalent
-  # (cpx22 = 2 vCPU / 4 GB, same specs as cx22). CX types would need fsn1/hel1.
-  # SIZING: cpx22 (4 GB) holds the base stack, but NOT with Metabase enabled — the
-  # Phase-7 e2e proved it OOMs/pends the product DB. With Metabase, use >= cpx42
-  # (8 vCPU / 16 GB). The current-gen AMD line in nbg1 is cpx*2 (cpx41 doesn't exist).
+  # Staging is small: single node. cpx22 (4 GB) holds the base stack but NOT with
+  # Metabase (OOMs) — use >= cpx42 (16 GB) then. nbg1 has the cpx*2 line (no cpx41);
+  # run scripts/hetzner-server-types.sh <region> before apply.
   server_count = 1
   server_type  = "[< staging_node_type >]"
 
@@ -25,6 +23,26 @@ module "cluster" {
     part_of     = "[< client_name >]"
   }
 }
+[% elif cloud == "digitalocean" %]
+module "cluster" {
+  source = "../../modules/cluster-doks"
+
+  do_token           = var.do_token
+  cluster_name       = "[< client_name >]-staging"
+  region             = "[< region >]"
+  k8s_version_prefix = "[< k8s_version >]"
+
+  # Staging: small, non-HA control plane. Use >= s-4vcpu-8gb with Metabase.
+  node_size        = "[< staging_node_type >]"
+  node_count       = 2
+  ha_control_plane = false
+
+  labels = {
+    environment = "staging"
+    part_of     = "[< client_name >]"
+  }
+}
+[% endif %]
 
 # Write the kubeconfig next to the root so the acceptance test is a one-liner:
 #   export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
