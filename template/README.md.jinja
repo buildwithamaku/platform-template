@@ -26,7 +26,7 @@ docs/         # plan, runbook
 
 | Phase | What | State |
 |-------|------|-------|
-| 1 | Substrate: `cluster-k3s` (Hetzner) + {{ client_name }} staging + CI | **done** — `apply`-verified |
+| 1 | Substrate: `cluster-k3s` (Hetzner) + [< client_name >] staging + CI | **done** — `apply`-verified |
 | 2 | GitOps + secrets spine (ArgoCD, ESO/Infisical, Reloader) | **done** — acceptance-tested, merged |
 | 3 | Edge + access (ingress-nginx, cert-manager, external-dns) — Tailscale deferred | **done** — green-lock verified on Hetzner |
 | 4 | Data layer (CloudNativePG + PITR to R2, Valkey cache) | **done** — failover + PITR verified |
