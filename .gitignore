@@ -32,7 +32,7 @@ e2e/node_modules/
 
 # tofu state/secrets/local (patterns re-anchored after the copier template/ move)
 **/.gen/
-**/kubeconfig*
+tofu/live/*/kubeconfig
 **/terraform.tfvars
 **/*.tfstate*
 **/*.tfstate.backup

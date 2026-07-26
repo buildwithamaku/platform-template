@@ -36,7 +36,8 @@ _exclude:
   - "**/terraform.tfstate*"
   - "**/terraform.tfvars"
   - "**/.gen"
-  - "**/kubeconfig"
+  - "tofu/live/*/kubeconfig" # the GENERATED kubeconfig file — exact path so it can't
+    # match the module's kubeconfig.tf (some copier versions glob "**/kubeconfig" onto it).
   - "**/backend.hcl" # per-client state backend config; only backend.hcl.example ships
 
 # ── Identity ────────────────────────────────────────────────────────────────
