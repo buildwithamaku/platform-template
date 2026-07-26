@@ -25,7 +25,8 @@ bootstrap, nothing is touched by hand — every change is a git commit.
 
 ### 1.2 Populate Infisical (`/[< client_name >]`)
 Every secret lives here; ESO syncs them in. Required keys:
-`GHCR_USERNAME`, `GHCR_PULL_TOKEN`, `CLOUDFLARE_API_TOKEN`, R2 `ACCESS_KEY_ID`/`SECRET_ACCESS_KEY`,
+`GHCR_USERNAME`, `GHCR_PULL_TOKEN`, `CLOUDFLARE_API_TOKEN`, R2 `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`
+(the `R2_` prefix is the Infisical key name ESO looks up — without it, CNPG backups silently never run),
 `SLACK_WEBHOOK_URL`, `METABASE_PRODUCT_DB_RO_PASSWORD`, `METABASE_OAUTH_CLIENT_ID`/`_SECRET`/`_COOKIE_SECRET`
 (cookie = `openssl rand -hex 16`), `TS_OAUTH_CLIENT_ID`/`_SECRET`, plus app secrets.
 
@@ -52,7 +53,10 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
 
 ### 1.5 Verify (acceptance)
 - `kubectl -n argocd get applications` → all Synced/Healthy.
-- `https://<app>.[< domain >]` serves with a green lock (cert-manager + external-dns).
+- DNS + TLS work: **staging** serves at `<sub>.staging.[< domain >]` with an *untrusted*
+  Let's Encrypt **staging** cert (deliberate — dodges LE rate limits; the browser warning is
+  expected). The trusted **green lock** is the **prod** milestone (`letsencrypt-prod` at
+  `<sub>.[< domain >]`). Either way external-dns created the record + cert-manager issued.
 - Grafana/ArgoCD/Redis Insight resolve **only over the tailnet**.
 - Metabase queries prod data read-only; a write is rejected.
 - A broken deploy is flagged by the prod smoke gate within minutes (§6).
@@ -90,7 +94,8 @@ from Infisical, so **rotation = update the value in Infisical** (ESO re-syncs �
   `kubectl -n data get pods -l app.kubernetes.io/name=backend-smoke` (ImagePullBackOff = e2e-image
   problem, not a bad deploy).
 - **k3s first-boot false pages** (KubeAPI/Kubelet/TargetDown) on a fresh cluster: expected while
-  Prometheus stabilizes; silence with `amtool silence add alertname=~".+"` if noisy.
+  Prometheus stabilizes. If noisy, silence ONLY the offenders (never `.+` — that masks real
+  incidents): `amtool silence add 'alertname=~"KubeAPIInstanceUnreachable|KubeletInstanceUnreachable|TargetDown"'`.
 
 ## 7. Prod hardening checklist (staging ships smaller)
 - [ ] **Loki → R2 object storage** (default is a 3 Gi PVC / 72 h retention — lost on node loss).
@@ -98,7 +103,9 @@ from Infisical, so **rotation = update the value in Infisical** (ESO re-syncs �
 - [ ] **Tighten `api_allowed_cidrs`** to the tailnet once the Tailscale API proxy is live.
 - [ ] **Tailscale ACL grant** restricting who can *reach* `tag:k8s` devices (tag = creation, not access).
 - [ ] Prod `refclient-e2e` image tag bumped via PR + the ghcr package authorized for `ghcr-pull`.
-- [ ] CNPG operator on 1.30 (in-tree barman) — migrate to the Barman Cloud plugin before bumping to 1.31.
+- [ ] CNPG operator pinned to the in-tree-barman era (currently 1.30); the in-tree
+      `barmanObjectStore` was removed in a later release — **verify the exact cutover in the
+      current CNPG docs** and migrate to the Barman Cloud plugin before bumping past it.
 
 ## 8. Migrating a client off a PaaS (Railway/Render/Heroku)
 1. Inventory their services, databases, env vars, domains.
