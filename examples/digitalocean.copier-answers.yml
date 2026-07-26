@@ -1,0 +1,35 @@
+# Example: a DigitalOcean (DOKS) client. Render with:
+#   copier copy --data-file examples/digitalocean.copier-answers.yml --defaults gh:... acme-platform
+# Shows the managed-cloud path (cluster-doks). NOTE follow-ups for a full DO client:
+# CNPG backup object storage -> DO Spaces (or R2) endpoint, and db_source=do-managed
+# managed-Postgres wiring — the cluster module itself is complete.
+client_name: acme
+domain: acme.com
+registry_org: acme-io
+platform_repo: acme-platform
+acme_email: ops@acme.com
+
+cloud: digitalocean
+region: fra1
+k8s_version: "1.31."
+staging_node_type: s-4vcpu-8gb
+prod_node_type: s-4vcpu-8gb
+prod_node_count: 3
+gpu: false
+r2_account_id: "REPLACE-with-spaces-or-r2-account"
+
+repo_layout: polyrepo
+app_backend: true
+app_frontend: false
+app_metabase: true
+
+cap_preview_envs: false
+cap_service_mesh: false
+cap_event_bus: false
+cap_vector_db: false
+cap_model_serving: false
+
+vpn: tailscale
+idp: google
+db_source: do-managed
+prod_profile: true

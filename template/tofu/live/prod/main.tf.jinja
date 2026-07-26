@@ -1,3 +1,4 @@
+[% if cloud == "hetzner" %]
 module "cluster" {
   source = "../../modules/cluster-k3s"
 
@@ -8,9 +9,8 @@ module "cluster" {
   cluster_name = "[< client_name >]-prod"
   location     = "[< region >]"
 
-  # Prod is HA: 3 servers with embedded-etcd quorum (decision D-02).
-  # NOTE: nbg1 does not offer the Intel CX line — use the AMD CPX equivalent
-  # (cpx32 = 4 vCPU / 8 GB, same specs as cx32). CX types would need fsn1/hel1.
+  # Prod is HA: 3 servers with embedded-etcd quorum (D-02). Use the AMD CPX line
+  # (cpx32 = 4 vCPU / 8 GB); run scripts/hetzner-server-types.sh <region> first.
   server_count = 3
   server_type  = "[< prod_node_type >]"
 
@@ -22,6 +22,27 @@ module "cluster" {
     part_of     = "[< client_name >]"
   }
 }
+[% elif cloud == "digitalocean" %]
+module "cluster" {
+  source = "../../modules/cluster-doks"
+
+  do_token           = var.do_token
+  cluster_name       = "[< client_name >]-prod"
+  region             = "[< region >]"
+  k8s_version_prefix = "[< k8s_version >]"
+
+  # Prod: HA control plane + [< prod_node_count >] nodes.
+  node_size        = "[< prod_node_type >]"
+  node_count       = [< prod_node_count >]
+  ha_control_plane = true
+[% if gpu %]  gpu_node_size    = "[< gpu_node_size >]"
+[% endif %]
+  labels = {
+    environment = "prod"
+    part_of     = "[< client_name >]"
+  }
+}
+[% endif %]
 
 # Write the kubeconfig next to the root so the acceptance test is a one-liner:
 #   export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes

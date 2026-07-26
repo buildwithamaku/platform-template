@@ -1,3 +1,4 @@
+[% if cloud == "hetzner" %]
 variable "hcloud_token" {
   type        = string
   sensitive   = true
@@ -12,5 +13,12 @@ variable "ssh_public_keys" {
 
 variable "api_allowed_cidrs" {
   type        = list(string)
-  description = "CIDRs allowed to reach the k3s API + SSH. Phase 1: your public IP (e.g. \"203.0.113.7/32\") and the CI egress range."
+  description = "CIDRs allowed to reach the k3s API + SSH (your public IP + CI egress)."
 }
+[% elif cloud == "digitalocean" %]
+variable "do_token" {
+  type        = string
+  sensitive   = true
+  description = "DigitalOcean API token. Supply via TF_VAR_do_token or a git-ignored *.tfvars."
+}
+[% endif %]
