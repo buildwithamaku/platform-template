@@ -53,13 +53,22 @@ jobs:
           fi
           echo "no stale copier vars ✓"
 
-      - name: tofu fmt both rendered infra trees (HCL syntax + formatting)
+      - name: tofu validate both rendered infra trees (per cloud)
+        # `tofu validate` resolves module references + provider schemas — it catches
+        # a live root wired to an output the chosen module doesn't expose (which
+        # `tofu fmt` structurally cannot see). init -backend=false pulls providers +
+        # local modules without touching remote state. Both clouds, both envs.
         run: |
           V=1.8.5
           curl -sSfL "https://github.com/opentofu/opentofu/releases/download/v${V}/tofu_${V}_linux_amd64.zip" -o /tmp/tofu.zip
           unzip -oq /tmp/tofu.zip -d /tmp/tofubin && sudo install /tmp/tofubin/tofu /usr/local/bin/tofu
-          tofu fmt -check -recursive /tmp/render/tofu
-          tofu fmt -check -recursive /tmp/render-do/tofu
+          for d in /tmp/render /tmp/render-do; do
+            tofu fmt -recursive "$d/tofu" >/dev/null   # normalize (parse check)
+            for env in staging prod; do
+              echo "== validate $d/$env =="
+              ( cd "$d/tofu/live/$env" && tofu init -backend=false -input=false >/dev/null && tofu validate )
+            done
+          done
 
       - name: Install kubeconform + kustomize (pinned)
         run: |

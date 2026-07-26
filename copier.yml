@@ -118,8 +118,14 @@ prod_node_count:
 
 gpu:
   type: bool
-  help: Provision a GPU node pool + NVIDIA operator (managed cloud only — Hetzner has ~none)
+  help: Provision a GPU node pool (managed cloud only — Hetzner has ~none)
   default: false
+
+gpu_node_size:
+  type: str
+  help: DOKS GPU droplet size for the GPU pool (e.g. gpu-h100x1-80gb). Asked only when gpu=true on DigitalOcean.
+  default: "gpu-h100x1-80gb"
+  when: "[< gpu and cloud == 'digitalocean' >]"
 
 r2_account_id:
   type: str

@@ -31,6 +31,7 @@ Every secret lives here; ESO syncs them in. Required keys:
 (cookie = `openssl rand -hex 16`), `TS_OAUTH_CLIENT_ID`/`_SECRET`, plus app secrets.
 
 ### 1.3 Provision the cluster (Plane 1)
+[% if cloud == "hetzner" %]
 ```bash
 cd tofu/live/staging
 # Pick a node type that is ACTUALLY sold in the region first:
@@ -41,7 +42,19 @@ export TF_VAR_hcloud_token=…            # or in .env
 tofu init && tofu apply                 # ~3 min; writes ./kubeconfig
 export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
 ```
-> With Metabase enabled, staging needs **≥ 16 GB** (4 GB OOMs the stack). See §7.
+[% elif cloud == "digitalocean" %]
+```bash
+cd tofu/live/staging
+# Managed DOKS — no SSH / node-size lookup. Pick a DO size (e.g. s-4vcpu-8gb; >= 8GB with Metabase).
+export TF_VAR_do_token=…                # or in .env
+tofu init && tofu apply                 # writes ./kubeconfig
+export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
+```
+> ⚠️ The DOKS kubeconfig is token-based and **expires (~7 days)**. Fine for the bootstrap
+> right after apply; for ongoing use refresh it:
+> `doctl kubernetes cluster kubeconfig save [< client_name >]-staging`.
+[% endif %]
+> With Metabase enabled, staging needs a bigger node (Hetzner ≥ 16 GB / DO ≥ s-4vcpu-8gb; 4 GB OOMs). See §7.
 
 ### 1.4 Bootstrap GitOps (Plane 2 — the one imperative step, §6.1)
 ```bash

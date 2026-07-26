@@ -36,7 +36,8 @@ module "cluster" {
   node_size        = "[< staging_node_type >]"
   node_count       = 2
   ha_control_plane = false
-
+[% if gpu %]  gpu_node_size    = "[< gpu_node_size >]"
+[% endif %]
   labels = {
     environment = "staging"
     part_of     = "[< client_name >]"

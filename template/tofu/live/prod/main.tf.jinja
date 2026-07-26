@@ -35,7 +35,8 @@ module "cluster" {
   node_size        = "[< prod_node_type >]"
   node_count       = [< prod_node_count >]
   ha_control_plane = true
-
+[% if gpu %]  gpu_node_size    = "[< gpu_node_size >]"
+[% endif %]
   labels = {
     environment = "prod"
     part_of     = "[< client_name >]"

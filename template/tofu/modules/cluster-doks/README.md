@@ -13,6 +13,11 @@ block-storage PVCs work with no extra config.
 | `cluster_id` | DOKS cluster id |
 
 **Notes**
+- **Kubeconfig expires.** `kube_config[0].raw_config` is TOKEN-based and DO expires
+  it (~7 days) — unlike the long-lived client-cert kubeconfig `cluster-k3s` writes.
+  The written `./kubeconfig` is fine for the one-shot `bootstrap.sh` right after
+  apply; for ongoing use refresh it with `doctl kubernetes cluster kubeconfig save <cluster_name>`.
+  So the `kubeconfig` output matches the k3s CONTRACT (same field) but not its lifetime.
 - No SSH/cloud-init/k3s bootstrap — the control plane is managed. There is no
   `api_allowed_cidrs` equivalent (the API endpoint is public with cert auth);
   private admin access is via the Tailscale API-server proxy (D-09).
