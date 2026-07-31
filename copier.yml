@@ -141,6 +141,14 @@ repo_layout:
   default: polyrepo
 
 # ── Capability matrix (proven components you toggle on — grows over time) ────
+# HOW a capability renders conditionally: each cap_* component ships as files
+# whose NAME embeds the toggle — e.g.
+#   template/clusters/platform/[% if cap_event_bus %]72-nats.yaml[% endif %].jinja
+# When the toggle is false the filename renders to the empty string and copier
+# SKIPS the file entirely (verified under this repo's [< >] envops). This beats
+# wrapping a file's body in [% if %] (which would emit an empty manifest that
+# still lands in clusters/platform/). CI coverage: examples/all-caps.copier-answers.yml
+# turns the built caps on so template-ci renders + kubeconforms their manifests.
 cap_preview_envs:
   type: bool
   help: Per-PR ephemeral environments (ArgoCD ApplicationSet PR generator) — Railway-migrant favourite
