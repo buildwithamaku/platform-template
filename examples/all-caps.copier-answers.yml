@@ -1,0 +1,41 @@
+# Example: a client with the (built) capability matrix turned ON. Render with:
+#   copier copy --data-file examples/all-caps.copier-answers.yml --defaults gh:... capsclient-platform
+#
+# PURPOSE: this is the CI fixture that gives the optional capability components
+# kubeconform coverage. template-ci renders refclient + the DO example (both
+# caps-OFF), so without this render the cap_* code paths would never be built or
+# validated. Keep every BUILT capability = true here.
+#
+# cap_service_mesh + cap_model_serving are declared in copier.yml but not built
+# yet (deferred — heaviest, GPU/cluster-bound), so they stay false until their
+# components land, at which point they flip to true here.
+client_name: capsclient
+domain: capsclient.dev
+registry_org: capsclient-io
+platform_repo: capsclient-platform
+acme_email: ops@capsclient.dev
+
+cloud: hetzner
+region: nbg1
+staging_node_type: cpx22
+prod_node_type: cpx32
+prod_node_count: 3
+gpu: false
+r2_account_id: "0000000000000000000000000000cafe"
+
+repo_layout: polyrepo
+
+app_backend: true
+app_frontend: false
+app_metabase: true
+
+cap_preview_envs: true
+cap_service_mesh: false # deferred — not built yet
+cap_event_bus: true
+cap_vector_db: true
+cap_model_serving: false # deferred — not built yet
+
+vpn: tailscale
+idp: google
+db_source: cnpg
+prod_profile: false

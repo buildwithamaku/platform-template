@@ -32,12 +32,14 @@ jobs:
           python-version: "3.12"
       - run: pip install --quiet copier
 
-      - name: Render both cloud variants
+      - name: Render both cloud variants + the caps-on fixture
         run: |
           copier copy --data-file refclient.copier-answers.yml --defaults --trust \
-            --vcs-ref HEAD . /tmp/render            # hetzner (cluster-k3s)
+            --vcs-ref HEAD . /tmp/render            # hetzner (cluster-k3s), all caps OFF
           copier copy --data-file examples/digitalocean.copier-answers.yml --defaults --trust \
-            --vcs-ref HEAD . /tmp/render-do         # digitalocean (cluster-doks)
+            --vcs-ref HEAD . /tmp/render-do         # digitalocean (cluster-doks), all caps OFF
+          copier copy --data-file examples/all-caps.copier-answers.yml --defaults --trust \
+            --vcs-ref HEAD . /tmp/render-caps       # built capability components turned ON
 
       - name: No stale copier vars (both renders)
         # Catches a half-converted template file (a {{ }} left after the [< >]
@@ -48,7 +50,7 @@ jobs:
         run: |
           vars=$(grep -E '^[a-z][a-zA-Z0-9_]*:' copier.yml | sed 's/:.*//' | paste -sd '|' -)
           echo "guarding: $vars"
-          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do; then
+          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do /tmp/render-caps; then
             echo "::error::stale {{ copier-var }} in a render — a template file was not converted to [< >]"; exit 1
           fi
           echo "no stale copier vars ✓"
@@ -77,16 +79,20 @@ jobs:
           curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.3
           sudo mv kustomize /usr/local/bin/
 
-      - name: kubeconform rendered manifests
+      - name: kubeconform rendered manifests (caps-off + caps-on)
         run: |
           kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
             -schema-location default -schema-location "$SCHEMA" /tmp/render/clusters
+          kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
+            -schema-location default -schema-location "$SCHEMA" /tmp/render-caps/clusters
 
-      - name: kubeconform rendered kustomize overlays
+      - name: kubeconform rendered kustomize overlays (caps-off + caps-on)
         run: |
-          for k in $(find /tmp/render/clusters/apps -type f -name kustomization.yaml -path '*/overlays/*'); do
-            echo "== $(dirname "$k") =="
-            kustomize build "$(dirname "$k")" | kubeconform \
-              -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
-              -schema-location default -schema-location "$SCHEMA" -
+          for base in /tmp/render /tmp/render-caps; do
+            for k in $(find "$base/clusters/apps" -type f -name kustomization.yaml -path '*/overlays/*'); do
+              echo "== $(dirname "$k") =="
+              kustomize build "$(dirname "$k")" | kubeconform \
+                -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
+                -schema-location default -schema-location "$SCHEMA" -
+            done
           done
