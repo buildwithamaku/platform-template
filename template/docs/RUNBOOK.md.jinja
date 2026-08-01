@@ -147,6 +147,15 @@ in `clusters/platform-config/database/cluster.yaml`). Use it from the app's norm
   `CREATE EXTENSION IF NOT EXISTS vector` once as a superuser (pgvector is untrusted; `appuser` can't).
 - Needs a pgvector-capable image. CNPG's default (standard-flavor) images bundle it; a `minimal` image does not.
 [% endif %]
+[% if cap_event_bus %]
+### NATS event bus (`cap_event_bus`)
+NATS + JetStream (3-node HA, persistent streams) in the `messaging` namespace
+(`clusters/platform/72-nats.yaml`). Connect in-cluster at `nats://nats.messaging.svc.cluster.local:4222`.
+- **Admin-only, no auth** — the cluster/tailnet is the boundary (same posture as Valkey). Add accounts/nkeys
+  before exposing it beyond in-cluster clients.
+- JetStream PVC defaults to 2Gi/pod — bump `config.jetstream.fileStore.pvc.size` in the Application for real stream volume.
+- Inspect: `kubectl -n messaging exec -it deploy/nats-box -- nats stream ls` (the chart ships a `nats-box`).
+[% endif %]
 [% endif %]
 ## [% if cap_vector_db or cap_event_bus or cap_preview_envs %]11[% else %]10[% endif %]. Gotchas quick-reference
 - **Hetzner server types vary by location + stock** (`cpx41` isn't sold in nbg1; run `hetzner-server-types.sh`).
