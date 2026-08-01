@@ -1,0 +1,52 @@
+# cap_event_bus (wave 7): NATS — async messaging / event bus for real services.
+# JetStream on (persistent streams + at-least-once), 3-node cluster for HA. This
+# whole file only exists when cap_event_bus=true (the toggle is in the filename —
+# a false toggle renders the name empty and copier skips it; see copier.yml).
+#
+# Clients connect in-cluster at nats://nats.messaging.svc.cluster.local:4222.
+# Admin-only; never public-ingressed. No auth is configured — the tailnet/cluster
+# is the boundary (same posture as Valkey). Add accounts/nkeys before exposing it.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nats
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "7"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://nats-io.github.io/k8s/helm/charts/
+    chart: nats
+    targetRevision: 2.14.2
+    helm:
+      values: |
+        config:
+          # 3-node route cluster => survives a single node loss.
+          cluster:
+            enabled: true
+            replicas: 3
+          # JetStream = durable streams + consumers (file-backed PVC per pod).
+          # 2Gi matches this template's frugal defaults (bump per workload).
+          jetstream:
+            enabled: true
+            fileStore:
+              pvc:
+                size: 2Gi
+        container:
+          merge:
+            resources:
+              requests: { cpu: 50m, memory: 128Mi }
+              limits: { memory: 512Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: messaging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
