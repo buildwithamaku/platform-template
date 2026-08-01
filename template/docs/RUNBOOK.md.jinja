@@ -135,7 +135,20 @@ repo ownership + the cloud/Infisical/Tailscale accounts, or keep operating it as
 To decommission: `tofu destroy` **after** draining `type: LoadBalancer` services (the CCM ingress LB is
 NOT tofu-tracked — sweep the cloud API for orphan LBs/volumes or they keep billing).
 
-## 10. Gotchas quick-reference
+[% if cap_vector_db or cap_event_bus or cap_preview_envs %]
+## 10. Capabilities (enabled for this client)
+Optional platform components, toggled at stamp time (`cap_*` in copier). Only the ones you enabled render.
+[% if cap_vector_db %]
+### pgvector (`cap_vector_db`)
+The `vector` extension is created in `appdb` at cluster bootstrap (`spec.bootstrap.initdb.postInitApplicationSQL`
+in `clusters/platform-config/database/cluster.yaml`). Use it from the app's normal `DATABASE_URL` —
+`CREATE TABLE ... (embedding vector(1536))`, then an `ivfflat`/`hnsw` index. Notes:
+- Runs **once, on a fresh cluster.** To add pgvector to an already-bootstrapped DB, run
+  `CREATE EXTENSION IF NOT EXISTS vector` once as a superuser (pgvector is untrusted; `appuser` can't).
+- Needs a pgvector-capable image. CNPG's default (standard-flavor) images bundle it; a `minimal` image does not.
+[% endif %]
+[% endif %]
+## [% if cap_vector_db or cap_event_bus or cap_preview_envs %]11[% else %]10[% endif %]. Gotchas quick-reference
 - **Hetzner server types vary by location + stock** (`cpx41` isn't sold in nbg1; run `hetzner-server-types.sh`).
 - **`tofu destroy` leaves the CCM ingress LB** (orphan, still billing) — delete via API after.
 - **external-dns `txt-owner-id` must be unique per cluster** or two clusters sharing a Cloudflare zone
