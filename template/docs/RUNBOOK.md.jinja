@@ -156,6 +156,24 @@ NATS + JetStream (3-node HA, persistent streams) in the `messaging` namespace
 - JetStream PVC defaults to 2Gi/pod — bump `config.jetstream.fileStore.pvc.size` in the Application for real stream volume.
 - Inspect: `kubectl -n messaging exec -it deploy/nats-box -- nats stream ls` (the chart ships a `nats-box`).
 [% endif %]
+[% if cap_preview_envs %]
+### Preview environments (`cap_preview_envs`)
+An ArgoCD `ApplicationSet` (`clusters/platform/95-preview-envs.yaml`) with a GitHub **pullRequest** generator
+stamps one app per OPEN PR against `[< registry_org >]/[< client_name >]-backend`: namespace `preview-pr-<n>`,
+image `sha-<head_short_sha>`, URL `https://pr-<n>.[< domain >]`. Closing the PR prunes the Application + namespace.
+- **One-time setup:**
+  - Infisical (client path): `PREVIEW_GITHUB_TOKEN` (PR read on the app repo), `PREVIEW_DATABASE_URL`
+    (a shared preview/staging `postgres://` URI). `GHCR_USERNAME`/`GHCR_PULL_TOKEN` are reused.
+  - DNS: add a **wildcard** `*.[< domain >]` (or `*.preview.[< domain >]`) → the ingress LB, and a DNS-01
+    **wildcard cert**, so `pr-<n>.[< domain >]` resolves + serves TLS.
+  - App-repo CI must push `ghcr.io/[< registry_org >]/[< client_name >]-backend:sha-<short-sha>` on PR commits
+    (extend `build-and-bump`, which already tags `sha-<short-sha>` on main).
+- **Shared-DB trade-off:** every preview points at `PREVIEW_DATABASE_URL`. Fine for read-mostly PR review;
+  a PR that migrates schema affects all previews. For isolation, give each PR its own CNPG `Cluster`
+  (add a per-PR `Cluster` + point the preview `[< client_name >]-db-app` ExternalSecret at it) — deferred follow-up.
+- **Gate to labelled PRs** (avoid a preview per PR): uncomment `labels: ["preview"]` in the generator.
+- To repoint previews at a different app, edit `clusters/apps/preview/base` + the ApplicationSet `repo`.
+[% endif %]
 [% endif %]
 ## [% if cap_vector_db or cap_event_bus or cap_preview_envs %]11[% else %]10[% endif %]. Gotchas quick-reference
 - **Hetzner server types vary by location + stock** (`cpx41` isn't sold in nbg1; run `hetzner-server-types.sh`).

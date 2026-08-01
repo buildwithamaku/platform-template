@@ -1,0 +1,18 @@
+# Preview overlay base — one stack per open PR. The ApplicationSet
+# (clusters/platform/95-preview-envs.yaml) references this path and, per PR:
+#   - sets destination.namespace = preview-pr-<n>   (namespace isolation)
+#   - overrides the image tag = sha-<head_short_sha> (the PR's build)
+#   - patches the Ingress host = pr-<n>.[< domain >]  (the PR's URL)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - externalsecret-ghcr.yaml
+  - externalsecret-db.yaml
+# Named so the ApplicationSet can override newTag per PR without editing files.
+images:
+  - name: ghcr.io/[< registry_org >]/[< client_name >]-backend
+    newName: ghcr.io/[< registry_org >]/[< client_name >]-backend
+    newTag: latest # placeholder; the ApplicationSet sets sha-<head_short_sha>

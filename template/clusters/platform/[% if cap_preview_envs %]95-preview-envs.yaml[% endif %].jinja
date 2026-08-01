@@ -1,0 +1,96 @@
+# cap_preview_envs (wave 15): per-PR ephemeral environments — the Railway-migrant
+# favourite. An ArgoCD ApplicationSet with a GitHub pullRequest generator stamps
+# one Application per OPEN PR (against the backend app repo), each deploying the
+# preview overlay (clusters/apps/preview/base) into its own namespace with the
+# PR's built image and its own URL. When the PR closes, the ApplicationSet removes
+# the Application and (preserveResourcesOnDeletion:false, the default) its
+# namespace + resources are pruned. Whole file only exists when cap_preview_envs
+# is true (the toggle is in the filename; see copier.yml).
+#
+# PREREQS (see the RUNBOOK preview-envs entry):
+#   - Infisical: PREVIEW_GITHUB_TOKEN (a token with repo PR read on the app repo),
+#     GHCR_USERNAME/GHCR_PULL_TOKEN (already used), PREVIEW_DATABASE_URL (shared preview DB).
+#   - DNS: a WILDCARD *.[< domain >] (or *.preview.[< domain >]) -> ingress LB, and a
+#     DNS-01 wildcard cert, so pr-<n>.[< domain >] resolves + serves TLS.
+#   - The app repo's CI must build+push ghcr.io/[< registry_org >]/[< client_name >]-backend:sha-<short-sha>
+#     on PR commits (build-and-bump already tags sha-<short-sha> on main; extend it to PRs).
+---
+# GitHub API token for the pullRequest generator (SCM read). ESO -> Infisical.
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: preview-github-token
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: infisical
+    kind: ClusterSecretStore
+  target:
+    name: preview-github-token
+  data:
+    - secretKey: token
+      remoteRef:
+        key: PREVIEW_GITHUB_TOKEN
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: preview-envs
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "15"
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - pullRequest:
+        github:
+          owner: [< registry_org >]
+          # The APP repo whose PRs get previews (polyrepo default = <client>-backend;
+          # for a monorepo, point this at the mono repo).
+          repo: [< client_name >]-backend
+          tokenRef:
+            secretName: preview-github-token
+            key: token
+          # Uncomment to gate previews on a label instead of every open PR:
+          # labels: ["preview"]
+        requeueAfterSeconds: 300
+  template:
+    metadata:
+      name: preview-pr-{{.number}}
+      labels:
+        preview.[< domain >]/pr: "{{.number}}"
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/[< registry_org >]/[< platform_repo >].git
+        targetRevision: main
+        path: clusters/apps/preview/base
+        kustomize:
+          # The PR's build (build-and-bump tags sha-<short-sha>).
+          images:
+            - ghcr.io/[< registry_org >]/[< client_name >]-backend:sha-{{.head_short_sha}}
+          # Per-PR URL. JSON6902 patch, Go-templated with the PR number.
+          patches:
+            - target:
+                kind: Ingress
+                name: backend
+              patch: |-
+                - op: replace
+                  path: /spec/rules/0/host
+                  value: pr-{{.number}}.[< domain >]
+                - op: replace
+                  path: /spec/tls/0/hosts/0
+                  value: pr-{{.number}}.[< domain >]
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: preview-pr-{{.number}}
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true

@@ -1,0 +1,66 @@
+# cap_preview_envs: the per-PR preview Deployment. Deploys the CLIENT'S backend
+# image; the ApplicationSet (clusters/platform/95-preview-envs.yaml) sets the tag
+# to the PR's build (sha-<head_short_sha>) per open PR and drops this whole stack
+# into a per-PR namespace (preview-pr-<n>).
+#
+# No metadata.namespace anywhere in this overlay — the Application's
+# destination.namespace (set per-PR by the ApplicationSet) is what places it, so
+# the same base renders into every PR's namespace unchanged.
+#
+# DATABASE_URL comes from a per-PR [< client_name >]-db-app secret that ESO fills
+# from PREVIEW_DATABASE_URL (a SHARED preview DB — the Railway model). This is the
+# documented trade-off: previews share one DB. For isolated per-PR data (or to
+# preview a schema migration), give each PR its own CNPG Cluster — see the RUNBOOK.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/part-of: [< client_name >]
+    env: preview
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1 # previews are cheap + ephemeral
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend
+        app.kubernetes.io/part-of: [< client_name >]
+        env: preview
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # distroless:nonroot uid
+      containers:
+        - name: backend
+          image: ghcr.io/[< registry_org >]/[< client_name >]-backend
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: [< client_name >]-db-app
+                  key: uri
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector-opentelemetry-collector.monitoring:4318
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 25m, memory: 48Mi }
+            limits: { memory: 128Mi }
