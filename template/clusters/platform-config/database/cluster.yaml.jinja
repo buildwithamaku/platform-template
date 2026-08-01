@@ -32,6 +32,19 @@ spec:
     initdb:
       database: appdb
       owner: appuser
+[% if cap_vector_db %]
+      # cap_vector_db: enable pgvector in appdb. postInitApplicationSQL runs once,
+      # at initdb, as the bootstrap SUPERUSER inside the application database — the
+      # only in-spec place `CREATE EXTENSION vector` can run, since pgvector is an
+      # UNtrusted extension (needs superuser) and CNPG leaves superuser access off.
+      # Requires a pgvector-capable image: CNPG's default (standard-flavor) images
+      # bundle pgvector, so no imageName override is needed here. If you pin a
+      # `minimal` image, add pgvector or this step fails. Runs only on a FRESH
+      # cluster — to add pgvector to an already-bootstrapped DB, run
+      # `CREATE EXTENSION IF NOT EXISTS vector` once as a superuser by hand.
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector
+[% endif %]
 
   # Surface Postgres metrics for Phase 5 (kube-prometheus-stack scrapes this).
   monitoring:
