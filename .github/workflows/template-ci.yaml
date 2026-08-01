@@ -89,7 +89,11 @@ jobs:
       - name: kubeconform rendered kustomize overlays (caps-off + caps-on)
         run: |
           for base in /tmp/render /tmp/render-caps; do
-            for k in $(find "$base/clusters/apps" -type f -name kustomization.yaml -path '*/overlays/*'); do
+            # overlays/* are the deployable app targets; preview/base is referenced
+            # directly by the cap_preview_envs ApplicationSet (no overlay), so build
+            # it too or a broken resources: ref there rots silently.
+            for k in $(find "$base/clusters/apps" -type f -name kustomization.yaml \
+                        \( -path '*/overlays/*' -o -path '*/preview/base/*' \)); do
               echo "== $(dirname "$k") =="
               kustomize build "$(dirname "$k")" | kubeconform \
                 -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \

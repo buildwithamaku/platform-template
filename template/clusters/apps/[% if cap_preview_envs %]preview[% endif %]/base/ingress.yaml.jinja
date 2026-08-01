@@ -1,0 +1,31 @@
+# Per-PR preview Ingress. The `host` here is a BASE PLACEHOLDER — the
+# ApplicationSet overrides it per-PR (kustomize patch) to pr-<n>.[< domain >], so
+# each PR gets its own URL. That means a WILDCARD DNS record *.[< domain >] (or
+# *.preview.[< domain >]) must point at the ingress LB, and the cert covers it
+# (DNS-01 wildcard) — see the RUNBOOK preview-envs entry.
+#
+# letsencrypt-staging while proving the flow (no rate limits); switch to
+# letsencrypt-prod for a trusted cert on real preview URLs.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-staging
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - preview.[< domain >]
+      secretName: preview-tls
+  rules:
+    - host: preview.[< domain >]
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
