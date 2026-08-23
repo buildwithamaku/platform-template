@@ -26,7 +26,7 @@ r2_account_id: "0000000000000000000000000000cafe"
 repo_layout: polyrepo
 
 app_backend: true
-app_frontend: false
+app_frontend: true # exercises the frontend component (Deployment/Service/Ingress + overlays)
 app_metabase: true
 
 cap_preview_envs: true

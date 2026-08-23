@@ -1,0 +1,66 @@
+# Reference frontend Deployment (app_frontend). A server-rendered SPA/SSR web app
+# (e.g. Next.js `output: "standalone"` -> `node server.js`, Vite+node, Remix...).
+# Image TAG is set by the overlay (bumped by CI); base leaves it bare.
+#
+# BUILD CONTRACT (what the image must satisfy):
+#   - listens on $PORT (default 3000 here) and binds 0.0.0.0 (Next standalone
+#     only binds all interfaces when HOSTNAME=0.0.0.0 — set below);
+#   - GET / returns < 400 (readiness). If your app's / redirects to /login that
+#     is fine (3xx counts as ready); otherwise point the probe at a health route.
+#
+# NEXT_PUBLIC_* CAVEAT: framework "public" vars (NEXT_PUBLIC_API_URL) are inlined
+# into the client bundle at BUILD time, not read at runtime — so the API URL must
+# be baked per-env at image build (or via a runtime-config shim). The runtime env
+# below only reaches server-side code (SSR/route handlers).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/part-of: [< client_name >]
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: frontend
+        app.kubernetes.io/part-of: [< client_name >]
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000 # node/nextjs uid — MUST match your Dockerfile's USER
+      containers:
+        - name: frontend
+          image: ghcr.io/[< registry_org >]/[< client_name >]-frontend
+          ports:
+            - { containerPort: 3000, name: http }
+          env:
+            - name: PORT
+              value: "3000"
+            - name: HOSTNAME # Next standalone binds 0.0.0.0 only when this is set
+              value: "0.0.0.0"
+            - name: NODE_ENV
+              value: production
+            # Server-side base URL for the API (browser calls use the BUILD-time
+            # NEXT_PUBLIC_* value — see the caveat above).
+            - name: NEXT_PUBLIC_API_URL
+              value: https://api.[< domain >]
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 25m, memory: 96Mi }
+            limits: { memory: 256Mi }

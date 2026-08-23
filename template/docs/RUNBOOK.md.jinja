@@ -83,6 +83,13 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
   to the proven staging SHA → review → merge → ArgoCD deploys → PostSync `@smoke`.
 - **Rollback = `git revert`** of the tag-bump commit. There is no other rollback.
 - Devs never touch the cluster; `git log overlays/prod/` is the prod history.
+[% if app_frontend %]- **Frontend** (`clusters/apps/frontend`) ships the same way: call `build-and-bump`
+  with `language: node` (and `context: <subdir>` for a monorepo) → image
+  `ghcr.io/[< registry_org >]/[< client_name >]-frontend`, served at `app.staging.[< domain >]` /
+  `app.[< domain >]`. Browser API calls hit `api.[< domain >]` (the backend's public ingress +
+  CORS), so bake `NEXT_PUBLIC_*` per-env at build; build with `output: "standalone"`
+  and set `USER 1000` in the Dockerfile to match the Deployment's securityContext.
+[% endif %]
 
 ## 3. The 2 am debug chain (all over the tailnet, no SSH)
 Slack page → **Grafana** → Loki `{app="<app>"} |= "error"` → the log's `trace_id` →

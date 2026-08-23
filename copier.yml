@@ -93,6 +93,12 @@ app_backend:
   default: true
 app_frontend:
   type: bool
+  help: >-
+    Web frontend (SSR/SPA — Next.js standalone, Vite+node, ...). Renders a
+    Deployment/Service + per-env Ingress at app[.staging].<domain>, its own ghcr
+    pull secret, and staging/prod overlays. Image = ghcr.io/<org>/<client>-frontend
+    (build with build-and-bump language:node). Browser API calls hit the backend's
+    public ingress (api.<domain>), so NEXT_PUBLIC_* is baked at build time.
   default: false
 app_metabase:
   type: bool

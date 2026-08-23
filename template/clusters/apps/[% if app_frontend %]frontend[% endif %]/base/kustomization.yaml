@@ -1,0 +1,10 @@
+# Frontend base — env-neutral pieces. Overlays add the per-env Ingress host + the
+# image tag. (Ingress lives in the overlay because the host differs per env.)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: frontend
+resources:
+  - namespace.yaml
+  - externalsecret-ghcr.yaml
+  - deployment.yaml
+  - service.yaml

@@ -1,0 +1,12 @@
+# Staging overlay — deployed to the staging cluster. The image newTag is bumped
+# automatically by CI (build-and-bump) on every merge to the frontend app's main.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: frontend
+resources:
+  - ../../base
+  - ingress.yaml
+images:
+  - name: ghcr.io/[< registry_org >]/[< client_name >]-frontend
+    newName: ghcr.io/[< registry_org >]/[< client_name >]-frontend
+    newTag: sha-0000000 # placeholder; build-and-bump sets sha-<short-sha>
