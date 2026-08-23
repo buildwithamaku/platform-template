@@ -39,7 +39,9 @@ jobs:
           copier copy --data-file examples/digitalocean.copier-answers.yml --defaults --trust \
             --vcs-ref HEAD . /tmp/render-do         # digitalocean (cluster-doks), all caps OFF
           copier copy --data-file examples/all-caps.copier-answers.yml --defaults --trust \
-            --vcs-ref HEAD . /tmp/render-caps       # built capability components turned ON
+            --vcs-ref HEAD . /tmp/render-caps       # built capability components turned ON (frontend_type=ssr)
+          copier copy --data-file examples/frontend-static.copier-answers.yml --defaults --trust \
+            --vcs-ref HEAD . /tmp/render-fe         # frontend_type=static (the DEFAULT mode)
 
       - name: No stale copier vars (both renders)
         # Catches a half-converted template file (a {{ }} left after the [< >]
@@ -50,7 +52,7 @@ jobs:
         run: |
           vars=$(grep -E '^[a-z][a-zA-Z0-9_]*:' copier.yml | sed 's/:.*//' | paste -sd '|' -)
           echo "guarding: $vars"
-          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do /tmp/render-caps; then
+          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do /tmp/render-caps /tmp/render-fe; then
             echo "::error::stale {{ copier-var }} in a render — a template file was not converted to [< >]"; exit 1
           fi
           echo "no stale copier vars ✓"
@@ -79,16 +81,16 @@ jobs:
           curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.3
           sudo mv kustomize /usr/local/bin/
 
-      - name: kubeconform rendered manifests (caps-off + caps-on)
+      - name: kubeconform rendered manifests (caps-off + caps-on + frontend-static)
         run: |
-          kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
-            -schema-location default -schema-location "$SCHEMA" /tmp/render/clusters
-          kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
-            -schema-location default -schema-location "$SCHEMA" /tmp/render-caps/clusters
+          for d in /tmp/render /tmp/render-caps /tmp/render-fe; do
+            kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
+              -schema-location default -schema-location "$SCHEMA" "$d/clusters"
+          done
 
-      - name: kubeconform rendered kustomize overlays (caps-off + caps-on)
+      - name: kubeconform rendered kustomize overlays (caps-off + caps-on + frontend-static)
         run: |
-          for base in /tmp/render /tmp/render-caps; do
+          for base in /tmp/render /tmp/render-caps /tmp/render-fe; do
             # overlays/* are the deployable app targets; preview/base is referenced
             # directly by the cap_preview_envs ApplicationSet (no overlay), so build
             # it too or a broken resources: ref there rots silently.

@@ -92,6 +92,9 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
     `USER 1000` to match the Deployment's securityContext; the app must bind `0.0.0.0:$PORT`.
 [% else %]  - **static**: Dockerfile serves built assets on `:8080` as non-root — base it on
     `nginxinc/nginx-unprivileged` (`USER 101`) and COPY the build output into `/usr/share/nginx/html`.
+    For a client-side-routed SPA, also ship an nginx config with `try_files $uri $uri/ /index.html`
+    or deep links (`/dashboard`, a refresh) 404 — and because the probes hit `/`, that failure is
+    invisible to health checks and hits only the user.
 [% endif %][% endif %]
 
 ## 3. The 2 am debug chain (all over the tailnet, no SSH)

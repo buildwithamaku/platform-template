@@ -1,0 +1,39 @@
+# Example: a client with a STATIC-SPA frontend (frontend_type: static — the
+# default, "the common case"). Render with:
+#   copier copy --data-file examples/frontend-static.copier-answers.yml --defaults gh:... dashkit-platform
+#
+# PURPOSE: the CI fixture that gives the DEFAULT frontend mode (static / nginx)
+# kubeconform coverage. all-caps.copier-answers.yml exercises frontend_type=ssr;
+# without this render the default path (what most stamped clients get) would only
+# be validated locally. Keep this frontend_type=static.
+client_name: dashkit
+domain: dashkit.example
+registry_org: dashkit-io
+platform_repo: dashkit-platform
+acme_email: ops@dashkit.example
+
+cloud: hetzner
+region: nbg1
+staging_node_type: cpx22
+prod_node_type: cpx32
+prod_node_count: 3
+gpu: false
+r2_account_id: "0000000000000000000000000000beef"
+
+repo_layout: polyrepo
+
+app_backend: true
+app_frontend: true
+frontend_type: static # the default mode — this fixture exists to guard it in CI
+app_metabase: false
+
+cap_preview_envs: false
+cap_service_mesh: false
+cap_event_bus: false
+cap_vector_db: false
+cap_model_serving: false
+
+vpn: tailscale
+idp: google
+db_source: cnpg
+prod_profile: false

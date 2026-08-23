@@ -69,6 +69,13 @@ spec:
       # 101) and COPY the build output into /usr/share/nginx/html. Any public API
       # URL (VITE_API_URL / NEXT_PUBLIC_API_URL) is baked at build; the browser
       # calls the backend's public ingress (api.[< domain >]) directly.
+      #
+      # SPA FALLBACK (do not skip for client-side routing): also COPY an nginx
+      # config with `location / { try_files $uri $uri/ /index.html; }`, or deep
+      # links (/dashboard, a refresh, a shared URL) 404. The probes below hit / —
+      # which always returns index.html — so a missing fallback passes health
+      # checks and fails ONLY for the user at deep-link time. (Pure static sites
+      # with real files per route don't need this.)
       securityContext:
         runAsNonRoot: true
         runAsUser: 101 # nginx uid in nginx-unprivileged — match your Dockerfile
