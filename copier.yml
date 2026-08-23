@@ -94,12 +94,23 @@ app_backend:
 app_frontend:
   type: bool
   help: >-
-    Web frontend (SSR/SPA — Next.js standalone, Vite+node, ...). Renders a
-    Deployment/Service + per-env Ingress at app[.staging].<domain>, its own ghcr
-    pull secret, and staging/prod overlays. Image = ghcr.io/<org>/<client>-frontend
-    (build with build-and-bump language:node). Browser API calls hit the backend's
-    public ingress (api.<domain>), so NEXT_PUBLIC_* is baked at build time.
+    Web frontend. Renders a Deployment/Service + per-env Ingress at
+    app[.staging].<domain>, its own ghcr pull secret, and staging/prod overlays.
+    Image = ghcr.io/<org>/<client>-frontend (build with build-and-bump language:node).
+    Browser API calls hit the backend's public ingress (api.<domain>), so any
+    build-time public API URL is baked at build. Serving mode = frontend_type.
   default: false
+
+frontend_type:
+  type: str
+  help: >-
+    How the frontend image serves. static = built assets behind nginx
+    (Vite/CRA/Angular/Vue, or Next `output: export`) — unprivileged nginx on :8080,
+    no Node runtime; the common case. ssr = a Node server ($PORT) for server-side
+    rendering (Next.js `output: standalone`, Nuxt, Remix, SvelteKit-node).
+  choices: [static, ssr]
+  default: static
+  when: "[< app_frontend >]"
 app_metabase:
   type: bool
   help: BI — Metabase read-only on prod data

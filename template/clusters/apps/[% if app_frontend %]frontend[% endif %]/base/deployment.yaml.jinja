@@ -1,17 +1,11 @@
-# Reference frontend Deployment (app_frontend). A server-rendered SPA/SSR web app
-# (e.g. Next.js `output: "standalone"` -> `node server.js`, Vite+node, Remix...).
+# Reference frontend Deployment (app_frontend). Serving mode = frontend_type:
+#   static — built assets behind unprivileged nginx (Vite/CRA/Angular/Vue, or
+#            Next `output: export`). No Node runtime; nginx listens on :8080.
+#   ssr    — a Node server ($PORT) for SSR (Next `output: standalone`, Nuxt, Remix).
 # Image TAG is set by the overlay (bumped by CI); base leaves it bare.
 #
-# BUILD CONTRACT (what the image must satisfy):
-#   - listens on $PORT (default 3000 here) and binds 0.0.0.0 (Next standalone
-#     only binds all interfaces when HOSTNAME=0.0.0.0 — set below);
-#   - GET / returns < 400 (readiness). If your app's / redirects to /login that
-#     is fine (3xx counts as ready); otherwise point the probe at a health route.
-#
-# NEXT_PUBLIC_* CAVEAT: framework "public" vars (NEXT_PUBLIC_API_URL) are inlined
-# into the client bundle at BUILD time, not read at runtime — so the API URL must
-# be baked per-env at image build (or via a runtime-config shim). The runtime env
-# below only reaches server-side code (SSR/route handlers).
+# The container port is named `http` in BOTH modes, so Service + Ingress are
+# mode-agnostic (only this container spec differs).
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -34,9 +28,15 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-pull
+[% if frontend_type == 'ssr' %]
+      # ── ssr: Node server ──────────────────────────────────────────────────
+      # BUILD CONTRACT: listens on $PORT (3000) and binds 0.0.0.0 (Next standalone
+      # only binds all interfaces when HOSTNAME=0.0.0.0); GET / returns < 400.
+      # PUBLIC-VAR CAVEAT: framework NEXT_PUBLIC_* / VITE_* are inlined into the
+      # client bundle at BUILD time — the runtime env below only reaches SSR code.
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000 # node/nextjs uid — MUST match your Dockerfile's USER
+        runAsUser: 1000 # node uid — MUST match your Dockerfile's USER
       containers:
         - name: frontend
           image: ghcr.io/[< registry_org >]/[< client_name >]-frontend
@@ -49,9 +49,7 @@ spec:
               value: "0.0.0.0"
             - name: NODE_ENV
               value: production
-            # Server-side base URL for the API (browser calls use the BUILD-time
-            # NEXT_PUBLIC_* value — see the caveat above).
-            - name: NEXT_PUBLIC_API_URL
+            - name: NEXT_PUBLIC_API_URL # server-side only (browser uses the build-time value)
               value: https://api.[< domain >]
           readinessProbe:
             httpGet: { path: /, port: http }
@@ -64,3 +62,30 @@ spec:
           resources:
             requests: { cpu: 25m, memory: 96Mi }
             limits: { memory: 256Mi }
+[% else %]
+      # ── static: unprivileged nginx serving built assets ───────────────────
+      # BUILD CONTRACT: image serves the built SPA on :8080 as a non-root user.
+      # Base your Dockerfile on `nginxinc/nginx-unprivileged` (listens 8080, uid
+      # 101) and COPY the build output into /usr/share/nginx/html. Any public API
+      # URL (VITE_API_URL / NEXT_PUBLIC_API_URL) is baked at build; the browser
+      # calls the backend's public ingress (api.[< domain >]) directly.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101 # nginx uid in nginx-unprivileged — match your Dockerfile
+      containers:
+        - name: frontend
+          image: ghcr.io/[< registry_org >]/[< client_name >]-frontend
+          ports:
+            - { containerPort: 8080, name: http }
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { memory: 128Mi }
+[% endif %]
