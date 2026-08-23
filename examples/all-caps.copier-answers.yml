@@ -27,6 +27,7 @@ repo_layout: polyrepo
 
 app_backend: true
 app_frontend: true # exercises the frontend component (Deployment/Service/Ingress + overlays)
+frontend_type: ssr # cover the Node-server path in CI (static is the default; validated locally)
 app_metabase: true
 
 cap_preview_envs: true
