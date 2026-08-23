@@ -1,0 +1,26 @@
+# Prod frontend ingress. LE PROD issuer (real green-lock cert). external-dns
+# creates the DNS record from host. Served at app.[< domain >].
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend
+  namespace: frontend
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - app.[< domain >]
+      secretName: frontend-tls
+  rules:
+    - host: app.[< domain >]
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

@@ -1,0 +1,29 @@
+# Wave 11: the reference frontend (Kustomize overlay). Points at overlays/staging
+# — on a real prod cluster the equivalent Application points at overlays/prod.
+# Needs ingress-nginx (wave 3) + the edge issuers (wave 4) for its Ingress/cert,
+# and ghcr-pull (created in its own base). Git-sourced (pins main). Whole file
+# only exists when app_frontend=true (toggle is in the filename; see copier.yml).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: frontend
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "11"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/[< registry_org >]/[< platform_repo >].git
+    targetRevision: main
+    path: clusters/apps/frontend/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: frontend
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
