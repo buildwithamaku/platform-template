@@ -27,7 +27,7 @@ spec:
         - name: ghcr-pull
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000 # node user in node:20-slim
+        runAsUser: 1000 # node user in node:[< node_version >]-slim
       containers:
         - name: e2e
           image: ghcr.io/[< registry_org >]/[< client_name >]-e2e

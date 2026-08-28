@@ -157,6 +157,23 @@ repo_layout:
   choices: [polyrepo, monorepo]
   default: polyrepo
 
+# ── Build toolchain ─────────────────────────────────────────────────────────
+# One place per language. Threaded into build-and-bump (app CI build/test), the
+# e2e workflow + e2e runner image, and — by convention — the client's app
+# Dockerfile, so the CI toolchain and the runtime base never drift. Bump per
+# client by changing the answer; a fresh stamp inherits a current default.
+node_version:
+  type: str
+  help: >-
+    Node major used for the app CI build (language:node) and the Playwright e2e
+    image. Match your app Dockerfile's base. Node 20 is EOL (Apr 2026); 24 is the
+    current LTS, 22 the previous.
+  default: "24"
+go_version:
+  type: str
+  help: Go version for the app CI build (language:go) — used by actions/setup-go.
+  default: "1.25"
+
 # ── Capability matrix (proven components you toggle on — grows over time) ────
 # HOW a capability renders conditionally: each cap_* component ships as files
 # whose NAME embeds the toggle — e.g.
