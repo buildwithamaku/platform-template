@@ -173,6 +173,13 @@ go_version:
   type: str
   help: Go version for the app CI build (language:go) — used by actions/setup-go.
   default: "1.25"
+pg_image:
+  type: str
+  help: >-
+    Postgres image for the in-cluster psql grant Jobs (metabase-ro + app-rw). MUST
+    match the running CNPG cluster image so the tag is already pulled on the node.
+    Keep in sync with the CNPG operator's default PG image when you bump the operator.
+  default: "ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie"
 
 # ── Capability matrix (proven components you toggle on — grows over time) ────
 # HOW a capability renders conditionally: each cap_* component ships as files
@@ -199,6 +206,16 @@ cap_vector_db:
   type: bool
   help: pgvector on the app DB (nearly free — a CNPG extension), or a dedicated store
   default: false
+cap_db_app_role:
+  type: bool
+  help: >-
+    Two-role DB security: the app connects at runtime as a least-privilege NON-OWNER
+    role (app_rw — SELECT/INSERT/UPDATE/DELETE only, no DDL), so Postgres row-level
+    security is enforced against it; schema migrations run out-of-band as the OWNER
+    (the PreSync migration Job, unchanged). For apps that move money/PII (RLS tenancy).
+    CNPG only (needs db_source=cnpg). The app must still declare its own RLS policies
+    in migrations — this provisions the enforcing role + read-write grants, not policies.
+  default: false
 cap_model_serving:
   type: bool
   help: Model serving (vLLM/KServe) — implies gpu on a managed cloud
@@ -223,6 +240,11 @@ db_source:
   help: Product DB — in-cluster CloudNativePG, or managed DO Managed Postgres. Same DATABASE_URL contract.
   choices: [cnpg, do-managed]
   default: cnpg
+  validator: >-
+    [% if db_source == 'do-managed' and cap_db_app_role %]
+    cap_db_app_role provisions a CNPG managed role + grants Job — it needs db_source=cnpg.
+    For DO Managed Postgres, create the least-privilege app role on the managed instance instead.
+    [% endif %]
 
 prod_profile:
   type: bool

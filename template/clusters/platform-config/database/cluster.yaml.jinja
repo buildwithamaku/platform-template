@@ -88,3 +88,20 @@ spec:
         inherit: true
         passwordSecret:
           name: metabase-ro-credentials
+[% if cap_db_app_role %]
+      # cap_db_app_role: the least-privilege RUNTIME role. Non-owner + non-super,
+      # so it does NOT bypass row-level security (CNPG creates roles NOBYPASSRLS) —
+      # RLS policies declared in the app's migrations are enforced against it.
+      # CNPG manages the role + password; read-write object GRANTs are applied by
+      # the app-rw-grants hook Job. Schema DDL stays with the owner (migration Job).
+      - name: app_rw
+        ensure: present
+        comment: Least-privilege read-write runtime role (RLS-subject; non-owner)
+        login: true
+        superuser: false
+        createdb: false
+        createrole: false
+        inherit: true
+        passwordSecret:
+          name: app-rw-credentials
+[% endif %]
