@@ -80,6 +80,11 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
 ---
 
 ## 2. Day-2 — shipping changes
+- **Containerized-only contract**: every app ships its own `Dockerfile` at its build
+  context (`<context>/Dockerfile`; a monorepo passes the service subdir). The platform
+  deploys container images only — there is **no** Nixpacks/buildpack fallback (deliberate:
+  pinned base image, non-root, auditable layers). `build-and-bump` fails fast if the
+  Dockerfile is missing. PaaS migrants (Railway/Render Nixpacks) must author one first — see §8.
 - **Staging is automatic**: merge to an app repo → CI builds a SHA-tagged image → the
   deployer App bumps `overlays/staging` → ArgoCD deploys → PreSync migration → PostSync full e2e.
 - **Prod is a promotion PR**: bump `clusters/apps/<app>/overlays/prod/kustomization.yaml`
