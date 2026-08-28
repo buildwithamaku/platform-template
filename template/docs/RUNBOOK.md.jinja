@@ -28,7 +28,10 @@ Every secret lives here; ESO syncs them in. Required keys:
 `GHCR_USERNAME`, `GHCR_PULL_TOKEN`, `CLOUDFLARE_API_TOKEN`, R2 `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`
 (the `R2_` prefix is the Infisical key name ESO looks up — without it, CNPG backups silently never run),
 `SLACK_WEBHOOK_URL`, `METABASE_PRODUCT_DB_RO_PASSWORD`, `METABASE_OAUTH_CLIENT_ID`/`_SECRET`/`_COOKIE_SECRET`
-(cookie = `openssl rand -hex 16`), `TS_OAUTH_CLIENT_ID`/`_SECRET`, plus app secrets.
+(cookie = `openssl rand -hex 16`), `TS_OAUTH_CLIENT_ID`/`_SECRET`,
+[% if cap_db_app_role %]`APP_DB_RW_PASSWORD` (the least-privilege runtime DB role's password —
+`openssl rand -hex 24`, must be URL-safe since it's embedded in the app_rw connection URI),
+[% endif %]plus app secrets.
 
 ### 1.3 Provision the cluster (Plane 1)
 [% if cloud == "hetzner" %]
@@ -148,7 +151,7 @@ repo ownership + the cloud/Infisical/Tailscale accounts, or keep operating it as
 To decommission: `tofu destroy` **after** draining `type: LoadBalancer` services (the CCM ingress LB is
 NOT tofu-tracked — sweep the cloud API for orphan LBs/volumes or they keep billing).
 
-[% if cap_vector_db or cap_event_bus or cap_preview_envs %]
+[% if cap_vector_db or cap_event_bus or cap_preview_envs or cap_db_app_role %]
 ## 10. Capabilities (enabled for this client)
 Optional platform components, toggled at stamp time (`cap_*` in copier). Only the ones you enabled render.
 [% if cap_vector_db %]
@@ -159,6 +162,24 @@ in `clusters/platform-config/database/cluster.yaml`). Use it from the app's norm
 - Runs **once, on a fresh cluster.** To add pgvector to an already-bootstrapped DB, run
   `CREATE EXTENSION IF NOT EXISTS vector` once as a superuser (pgvector is untrusted; `appuser` can't).
 - Needs a pgvector-capable image. CNPG's default (standard-flavor) images bundle it; a `minimal` image does not.
+[% endif %]
+[% if cap_db_app_role %]
+### Two-role DB / RLS runtime role (`cap_db_app_role`)
+The app connects at runtime as **`app_rw`** — a least-privilege, non-owner role that can
+`SELECT/INSERT/UPDATE/DELETE` but run no DDL. Schema migrations run out-of-band as the **owner**
+(`appuser`) through the backend PreSync migration Job. Because `app_rw` is non-owner + non-superuser
+(CNPG creates it `NOBYPASSRLS`), any Postgres **row-level security** the app declares is enforced against it.
+- **Files** (`clusters/platform-config/database/`): the `app_rw` managed role in `cluster.yaml`;
+  `app-rw-credentials` (basic-auth → CNPG); `[< client_name >]-db-app-rw` (the app's connection Secret —
+  `uri` + discrete `host`/`port`/`dbname`/`username`/`password`); `app-rw-grants-job` (PostSync, grants read-write).
+- **Contract:** the runtime Deployment reads `[< client_name >]-db-app-rw` (`uri`); the migration Job keeps the
+  owner secret `[< client_name >]-db-app`. Apps taking discrete `DB_*` vars map them to the Secret's discrete keys
+  and set `DB_MIGRATIONS_RUN=false` (migrations are the Job's job, as the owner).
+- **RLS is yours to declare:** this provisions the *enforcing role* + grants, not policies. The app's migrations
+  must `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and add policies. Tables are owned by `appuser`; the owner
+  bypasses RLS by default (fine — migrations only). Add `FORCE ROW LEVEL SECURITY` only if the owner must be subject too.
+- **Secret:** `APP_DB_RW_PASSWORD` in Infisical (URL-safe; see §1.2). Missing → the role never reconciles and
+  the grants Job backs off.
 [% endif %]
 [% if cap_event_bus %]
 ### NATS event bus (`cap_event_bus`)
@@ -188,7 +209,7 @@ image `sha-<head_short_sha>`, URL `https://pr-<n>.[< domain >]`. Closing the PR 
 - To repoint previews at a different app, edit `clusters/apps/preview/base` + the ApplicationSet `repo`.
 [% endif %]
 [% endif %]
-## [% if cap_vector_db or cap_event_bus or cap_preview_envs %]11[% else %]10[% endif %]. Gotchas quick-reference
+## [% if cap_vector_db or cap_event_bus or cap_preview_envs or cap_db_app_role %]11[% else %]10[% endif %]. Gotchas quick-reference
 - **Hetzner server types vary by location + stock** (`cpx41` isn't sold in nbg1; run `hetzner-server-types.sh`).
 - **`tofu destroy` leaves the CCM ingress LB** (orphan, still billing) — delete via API after.
 - **external-dns `txt-owner-id` must be unique per cluster** or two clusters sharing a Cloudflare zone

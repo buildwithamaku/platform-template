@@ -1,0 +1,74 @@
+# cap_db_app_role — object-level GRANTs for the least-privilege runtime role app_rw.
+#
+# CNPG's managed.roles creates the ROLE but not privileges on database objects, so
+# this hook Job connects as `appuser` (the appdb OWNER, via the CNPG-generated
+# [< client_name >]-db-app secret) and grants read-WRITE on data — SELECT/INSERT/UPDATE/DELETE
+# on tables and USAGE/SELECT/UPDATE on sequences (nextval on identity/serial cols).
+# ALTER DEFAULT PRIVILEGES extends the grants to tables/sequences FUTURE migrations
+# create, so new schema doesn't silently 403 the app. There is deliberately NO
+# CREATE grant and CREATE on schema public is revoked: app_rw cannot run DDL — schema
+# changes belong to the owner (the backend PreSync migration Job). Because app_rw is a
+# non-owner, non-superuser role (CNPG creates it NOBYPASSRLS), RLS policies the app
+# declares in its migrations are enforced against it.
+#
+# PostSync + idempotent + waits for the role to exist, so it is safe to re-run on every
+# sync and tolerant of CNPG reconciling the role slightly after the Cluster.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: app-rw-grants
+  namespace: data
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 5
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: app-rw-grants
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 26 # postgres uid in the CNPG image
+      containers:
+        - name: grants
+          # Must match the running CNPG cluster image (has psql, already pulled on
+          # the node). Parameterized via pg_image; keep it in sync with the CNPG
+          # operator's default PG image. A wrong/absent tag stalls the Job to its
+          # activeDeadline instead of failing fast.
+          image: [< pg_image >]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              set -eu
+              echo "waiting for the app_rw role to exist..."
+              until psql "$DATABASE_URL" -tAc \
+                "SELECT 1 FROM pg_roles WHERE rolname = 'app_rw'" | grep -q 1; do
+                sleep 5
+              done
+              echo "granting read-write privileges on appdb to app_rw"
+              psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+              GRANT CONNECT ON DATABASE appdb TO app_rw;
+              GRANT USAGE ON SCHEMA public TO app_rw;
+              GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_rw;
+              GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO app_rw;
+              ALTER DEFAULT PRIVILEGES FOR ROLE appuser IN SCHEMA public
+                GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_rw;
+              ALTER DEFAULT PRIVILEGES FOR ROLE appuser IN SCHEMA public
+                GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO app_rw;
+              -- least privilege: no DDL at runtime (schema changes = owner/migration Job).
+              REVOKE CREATE ON SCHEMA public FROM app_rw;
+              SQL
+              echo "done."
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: [< client_name >]-db-app # appuser / owner of appdb
+                  key: uri
+          resources:
+            requests: { cpu: 25m, memory: 48Mi }
+            limits: { memory: 128Mi }

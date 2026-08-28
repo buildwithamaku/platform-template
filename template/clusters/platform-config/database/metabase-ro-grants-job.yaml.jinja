@@ -32,10 +32,10 @@ spec:
       containers:
         - name: grants
           # Must match the running CNPG cluster image (has psql, already pulled on
-          # the node). Keep in sync with the operator's default PG image; a copier
-          # variable in Phase 8. A wrong/absent tag here stalls the Job to its
+          # the node). Parameterized via pg_image; keep it in sync with the operator's
+          # default PG image. A wrong/absent tag here stalls the Job to its
           # activeDeadline instead of failing fast.
-          image: ghcr.io/cloudnative-pg/postgresql:18.4-system-trixie
+          image: [< pg_image >]
           command: ["/bin/sh", "-c"]
           args:
             - |

@@ -34,6 +34,7 @@ cap_preview_envs: true
 cap_service_mesh: false # deferred — not built yet
 cap_event_bus: true
 cap_vector_db: true
+cap_db_app_role: true # two-role RLS runtime role (needs db_source=cnpg, set below)
 cap_model_serving: false # deferred — not built yet
 
 vpn: tailscale
