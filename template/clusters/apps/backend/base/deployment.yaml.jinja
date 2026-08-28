@@ -1,7 +1,14 @@
-# Reference backend Deployment. Consumes DATABASE_URL from the CNPG-generated
-# app secret ([< client_name >]-db-app.uri) — the §5.4 contract, source-swappable. The
-# reloader annotation rolls it when that secret rotates. Image TAG is set by the
-# overlay (bumped by CI); base leaves it bare.
+# Reference backend Deployment. Consumes DATABASE_URL — the §5.4 contract,
+# source-swappable. The reloader annotation rolls it when that secret rotates.
+# Image TAG is set by the overlay (bumped by CI); base leaves it bare.
+[% if cap_db_app_role %]#
+# cap_db_app_role ON: runtime connects as the least-privilege NON-OWNER role via
+# [< client_name >]-db-app-rw (app_rw — no DDL, RLS-subject). Schema migrations still run
+# as the OWNER through the PreSync migration Job ([< client_name >]-db-app), so DDL and
+# runtime are cleanly separated.
+[% else %]#
+# Consumes [< client_name >]-db-app.uri (the CNPG-generated owner secret).
+[% endif %]
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -38,7 +45,7 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
-                  name: [< client_name >]-db-app
+                  name: [% if cap_db_app_role %][< client_name >]-db-app-rw[% else %][< client_name >]-db-app[% endif %]
                   key: uri
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector-opentelemetry-collector.monitoring:4318
