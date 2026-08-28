@@ -216,6 +216,16 @@ cap_db_app_role:
     CNPG only (needs db_source=cnpg). The app must still declare its own RLS policies
     in migrations — this provisions the enforcing role + read-write grants, not policies.
   default: false
+cap_single_writer:
+  type: bool
+  help: >-
+    Single-writer worker for in-process schedulers. An in-app scheduler (e.g.
+    @nestjs/schedule) fires on every replica, so a @Cron double-fires on a
+    multi-replica web Deployment — bad for money/PII apps (double payouts/purges).
+    Renders a separate 1-replica worker Deployment (strategy: Recreate) that runs
+    the scheduler; the web pods set SCHEDULER_ENABLED=false, the worker true. The
+    app must gate its scheduler on SCHEDULER_ENABLED == "true". Needs app_backend.
+  default: false
 cap_model_serving:
   type: bool
   help: Model serving (vLLM/KServe) — implies gpu on a managed cloud
