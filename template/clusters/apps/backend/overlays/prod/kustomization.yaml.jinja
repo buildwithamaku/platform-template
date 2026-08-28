@@ -7,6 +7,9 @@ namespace: data
 resources:
   - ../../base
   - smoke-job.yaml
+[% if backend_public %]
+  - ingress.yaml # public api.[< domain >] (backend_public)
+[% endif %]
 images:
   - name: ghcr.io/[< registry_org >]/[< client_name >]-backend
     newTag: sha-43942fc # promoted from staging via PR (proven in staging first)

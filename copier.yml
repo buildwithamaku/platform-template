@@ -91,6 +91,15 @@ k8s_version:
 app_backend:
   type: bool
   default: true
+backend_public:
+  type: bool
+  help: >-
+    Expose the backend on a PUBLIC ingress at api[.staging].<domain> (LE cert +
+    external-dns), for apps a browser calls directly (e.g. a frontend hitting
+    NEXT_PUBLIC_API_URL). Off = backend is in-cluster only (the reference default).
+    When on with app_frontend, set the app's CORS_ORIGINS env to the frontend origin.
+  default: false
+  when: "[< app_backend >]"
 app_frontend:
   type: bool
   help: >-

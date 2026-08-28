@@ -7,6 +7,9 @@ namespace: data
 resources:
 - ../../base
 - e2e-job.yaml
+[% if backend_public %]
+- ingress.yaml # public api.staging.[< domain >] (backend_public)
+[% endif %]
 images:
 - name: ghcr.io/[< registry_org >]/[< client_name >]-backend
   newName: ghcr.io/[< registry_org >]/[< client_name >]-backend

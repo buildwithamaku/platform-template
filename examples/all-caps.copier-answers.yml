@@ -26,6 +26,7 @@ r2_account_id: "0000000000000000000000000000cafe"
 repo_layout: polyrepo
 
 app_backend: true
+backend_public: true # exercises the backend public ingress (api[.staging].<domain>)
 app_frontend: true # exercises the frontend component (Deployment/Service/Ingress + overlays)
 frontend_type: ssr # cover the Node-server path in CI (static is the default; validated locally)
 app_metabase: true

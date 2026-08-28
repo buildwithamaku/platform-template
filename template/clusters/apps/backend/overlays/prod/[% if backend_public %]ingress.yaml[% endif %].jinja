@@ -1,0 +1,28 @@
+# backend_public — prod backend ingress. LE PROD issuer (real green-lock cert).
+# external-dns creates the DNS record from host. Served at api.[< domain >]; a
+# browser frontend points NEXT_PUBLIC_API_URL here. Lives in the `data` namespace
+# alongside the backend Deployment/Service.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend
+  namespace: data
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.[< domain >]
+      secretName: backend-tls
+  rules:
+    - host: api.[< domain >]
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
