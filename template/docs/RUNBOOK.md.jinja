@@ -86,6 +86,14 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
   to the proven staging SHA → review → merge → ArgoCD deploys → PostSync `@smoke`.
 - **Rollback = `git revert`** of the tag-bump commit. There is no other rollback.
 - Devs never touch the cluster; `git log overlays/prod/` is the prod history.
+[% if backend_public %]- **Backend public ingress** (`backend_public`): the backend is exposed at
+  `api.staging.[< domain >]` / `api.[< domain >]` (per-env `ingress.yaml` in each backend overlay,
+  `nginx` class, LE staging/prod issuer, `backend-tls`, `data` namespace). external-dns creates the
+  record + cert-manager issues. Off by default (the reference backend is in-cluster only).
+[% if app_frontend %]  - **CORS:** set the app's `CORS_ORIGINS` env (an app secret in Infisical, §1.2) to the frontend
+    origin — `https://app.staging.[< domain >]` on staging, `https://app.[< domain >]` on prod — or the
+    browser's cross-origin calls to `api.*` are blocked. Not platform-enforced; it's app config.
+[% endif %][% endif %]
 [% if app_frontend %]- **Frontend** (`clusters/apps/frontend`, mode `frontend_type: [< frontend_type >]`) ships the
   same way: call `build-and-bump` with `language: node` (and `context: <subdir>` for a monorepo)
   → image `ghcr.io/[< registry_org >]/[< client_name >]-frontend`, served at `app.staging.[< domain >]` /
