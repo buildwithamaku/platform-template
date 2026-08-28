@@ -42,6 +42,10 @@ spec:
           env:
             - name: PORT
               value: "8080"
+[% if cap_single_writer %]
+            - name: SCHEDULER_ENABLED # web pods NEVER run the scheduler — the
+              value: "false"          # single worker Deployment does (cap_single_writer)
+[% endif %]
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:

@@ -151,7 +151,7 @@ repo ownership + the cloud/Infisical/Tailscale accounts, or keep operating it as
 To decommission: `tofu destroy` **after** draining `type: LoadBalancer` services (the CCM ingress LB is
 NOT tofu-tracked — sweep the cloud API for orphan LBs/volumes or they keep billing).
 
-[% if cap_vector_db or cap_event_bus or cap_preview_envs or cap_db_app_role %]
+[% if cap_vector_db or cap_event_bus or cap_preview_envs or cap_db_app_role or cap_single_writer %]
 ## 10. Capabilities (enabled for this client)
 Optional platform components, toggled at stamp time (`cap_*` in copier). Only the ones you enabled render.
 [% if cap_vector_db %]
@@ -181,6 +181,24 @@ The app connects at runtime as **`app_rw`** — a least-privilege, non-owner rol
 - **Secret:** `APP_DB_RW_PASSWORD` in Infisical (URL-safe; see §1.2). Missing → the role never reconciles and
   the grants Job backs off.
 [% endif %]
+[% if cap_single_writer %]
+### Single-writer worker (`cap_single_writer`)
+In-process schedulers (`@nestjs/schedule` and friends) fire on **every** replica, so a `@Cron` on the
+2-replica web Deployment double-fires — double payouts/purges/races for a money app. This runs the
+scheduler in exactly one place: `clusters/apps/backend/base/worker-deployment.yaml` (`backend-worker`,
+**replicas: 1**, **strategy: Recreate**), same image/tag as the web backend (the overlay's `images:`
+transformer bumps both). Web pods get `SCHEDULER_ENABLED=false`; the worker gets `true`.
+- **App contract:** gate the scheduler on `SCHEDULER_ENABLED == "true"` (e.g. don't register
+  `ScheduleModule`/`@Cron` unless set). Without that gate the web pods still run crons and the split is moot.
+- **Why Recreate, not RollingUpdate:** a rolling update briefly runs the new worker pod alongside the old
+  → two schedulers for a few seconds → a tick can double-fire. Recreate stops the old pod first (a short
+  scheduler gap on each deploy — acceptable for crons; correctness beats uptime here).
+- **Never scale it** and never attach an HPA — `replicas: 1` is the invariant. No Service points at it;
+  it exists only to run the scheduler (probes still hit the pod's own `:8080`).
+- For stronger guarantees (no scheduler gap, or work that must survive a pod restart mid-run), move the
+  schedule out of the app into k8s `CronJob`s (`concurrencyPolicy: Forbid`) invoking a command — heavier,
+  needs per-task entrypoints; deferred.
+[% endif %]
 [% if cap_event_bus %]
 ### NATS event bus (`cap_event_bus`)
 NATS + JetStream (3-node HA, persistent streams) in the `messaging` namespace
@@ -209,7 +227,7 @@ image `sha-<head_short_sha>`, URL `https://pr-<n>.[< domain >]`. Closing the PR 
 - To repoint previews at a different app, edit `clusters/apps/preview/base` + the ApplicationSet `repo`.
 [% endif %]
 [% endif %]
-## [% if cap_vector_db or cap_event_bus or cap_preview_envs or cap_db_app_role %]11[% else %]10[% endif %]. Gotchas quick-reference
+## [% if cap_vector_db or cap_event_bus or cap_preview_envs or cap_db_app_role or cap_single_writer %]11[% else %]10[% endif %]. Gotchas quick-reference
 - **Hetzner server types vary by location + stock** (`cpx41` isn't sold in nbg1; run `hetzner-server-types.sh`).
 - **`tofu destroy` leaves the CCM ingress LB** (orphan, still billing) — delete via API after.
 - **external-dns `txt-owner-id` must be unique per cluster** or two clusters sharing a Cloudflare zone

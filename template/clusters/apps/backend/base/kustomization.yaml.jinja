@@ -6,3 +6,6 @@ resources:
   - servicemonitor.yaml
   - prometheusrule.yaml
   - migration-job.yaml
+[% if cap_single_writer %]
+  - worker-deployment.yaml # single-writer scheduler (cap_single_writer)
+[% endif %]

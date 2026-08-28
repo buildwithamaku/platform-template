@@ -1,0 +1,72 @@
+# cap_single_writer — the single-writer worker. An in-process scheduler (e.g.
+# @nestjs/schedule) fires on EVERY replica, so a @Cron running on the 2-replica
+# web Deployment double-fires — for a money/PII app that means double payouts,
+# double purges, races. This Deployment runs the scheduler in exactly ONE place:
+# the web Deployment sets SCHEDULER_ENABLED=false; this worker sets it true.
+#
+# TWO invariants make "single writer" actually hold:
+#   1. replicas: 1 — never scale this, and never put an HPA on it.
+#   2. strategy: Recreate — a RollingUpdate briefly runs the NEW pod alongside the
+#      OLD one, so two schedulers overlap for a few seconds mid-deploy and a tick
+#      can double-fire. Recreate tears the old pod down BEFORE starting the new one
+#      (a short scheduler gap during deploys — fine for crons; correctness > uptime).
+#
+# Same image as the web backend (the overlay's images: transformer bumps both by
+# name), so the worker always runs the code being deployed. It is deliberately NOT
+# fronted by a Service — no traffic is routed here; it exists only to run the
+# scheduler. The app must gate its scheduler on SCHEDULER_ENABLED == "true".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-worker
+  labels:
+    app.kubernetes.io/name: backend-worker
+    app.kubernetes.io/part-of: [< client_name >]
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1 # single writer — do not scale, do not add an HPA
+  strategy:
+    type: Recreate # old pod fully gone before new starts → never two schedulers
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: backend-worker
+        app.kubernetes.io/part-of: [< client_name >]
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
+      containers:
+        - name: worker
+          image: ghcr.io/[< registry_org >]/[< client_name >]-backend
+          ports:
+            - { containerPort: 8080, name: http }
+          env:
+            - name: PORT
+              value: "8080"
+            - name: SCHEDULER_ENABLED # this is the one place the scheduler runs
+              value: "true"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: [% if cap_db_app_role %][< client_name >]-db-app-rw[% else %][< client_name >]-db-app[% endif %]
+                  key: uri
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector-opentelemetry-collector.monitoring:4318
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            requests: { cpu: 25m, memory: 48Mi }
+            limits: { memory: 128Mi }
