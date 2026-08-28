@@ -1,7 +1,7 @@
 # Small API-only E2E image: Node + @playwright/test (no browsers — the suite uses
 # Playwright's request context). Runs the full suite (staging PostSync hook) or
 # the @smoke subset (prod PostSync hook). Non-root; writes only to /tmp.
-FROM node:20-slim
+FROM node:[< node_version >]-slim
 ENV HOME=/tmp \
     CI=true \
     NODE_ENV=production

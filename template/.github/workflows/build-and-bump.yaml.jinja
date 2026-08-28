@@ -56,13 +56,13 @@ jobs:
       - if: inputs.language == 'go'
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "[< go_version >]"
       - if: inputs.language == 'go'
         run: go vet ./... && go test ./...
       - if: inputs.language == 'node'
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "[< node_version >]"
       - if: inputs.language == 'node'
         working-directory: ${{ inputs.context }}
         run: |
