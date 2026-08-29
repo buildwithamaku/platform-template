@@ -100,6 +100,19 @@ backend_public:
     When on with app_frontend, set the app's CORS_ORIGINS env to the frontend origin.
   default: false
   when: "[< app_backend >]"
+backend_health_path:
+  type: str
+  help: >-
+    Liveness endpoint the backend Deployment probes. The factory does NOT dictate a
+    path — set it to whatever your framework exposes (NestJS /api/health, Spring
+    /actuator/health, Go /healthz, ...). The app just has to answer 200 there.
+  default: "/healthz"
+  when: "[< app_backend >]"
+backend_ready_path:
+  type: str
+  help: Readiness endpoint the backend Deployment probes (see backend_health_path).
+  default: "/readyz"
+  when: "[< app_backend >]"
 app_frontend:
   type: bool
   help: >-
@@ -224,7 +237,16 @@ cap_db_app_role:
     (the PreSync migration Job, unchanged). For apps that move money/PII (RLS tenancy).
     CNPG only (needs db_source=cnpg). The app must still declare its own RLS policies
     in migrations — this provisions the enforcing role + read-write grants, not policies.
+    The role name is db_app_role_name (below).
   default: false
+db_app_role_name:
+  type: str
+  help: >-
+    Name of the runtime DB role cap_db_app_role provisions. Set it to whatever your
+    app's RLS policies / grant scripts already reference (e.g. app_user) so names
+    match end-to-end — a mismatch means FORCE-RLS denies the runtime role every row.
+  default: app_rw
+  when: "[< cap_db_app_role >]"
 cap_single_writer:
   type: bool
   help: >-

@@ -40,8 +40,7 @@ spec:
       imagePullSecrets:
         - name: ghcr-pull
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
+        runAsNonRoot: true # numeric non-root USER in the image (APP-CONTRACT); factory pins no uid
       containers:
         - name: worker
           image: ghcr.io/[< registry_org >]/[< client_name >]-backend
@@ -60,11 +59,11 @@ spec:
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector-opentelemetry-collector.monitoring:4318
           readinessProbe:
-            httpGet: { path: /readyz, port: http }
+            httpGet: { path: [< backend_ready_path >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: /healthz, port: http }
+            httpGet: { path: [< backend_health_path >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 15
           resources:
