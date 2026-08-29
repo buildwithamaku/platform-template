@@ -27,8 +27,8 @@ bootstrap, nothing is touched by hand — every change is a git commit.
 Every secret lives here; ESO syncs them in. Required keys:
 `GHCR_USERNAME`, `GHCR_PULL_TOKEN`, `CLOUDFLARE_API_TOKEN`, R2 `R2_ACCESS_KEY_ID`/`R2_SECRET_ACCESS_KEY`
 (the `R2_` prefix is the Infisical key name ESO looks up — without it, CNPG backups silently never run),
-`SLACK_WEBHOOK_URL`, `METABASE_PRODUCT_DB_RO_PASSWORD`, `METABASE_OAUTH_CLIENT_ID`/`_SECRET`/`_COOKIE_SECRET`
-(cookie = `openssl rand -hex 16`), `TS_OAUTH_CLIENT_ID`/`_SECRET`,
+`SLACK_WEBHOOK_URL`, [% if app_metabase %]`METABASE_PRODUCT_DB_RO_PASSWORD`, `METABASE_OAUTH_CLIENT_ID`/`_SECRET`/`_COOKIE_SECRET`
+(cookie = `openssl rand -hex 16`), [% endif %]`TS_OAUTH_CLIENT_ID`/`_SECRET`,
 [% if cap_db_app_role %]`APP_DB_RW_PASSWORD` (the least-privilege runtime DB role's password —
 `openssl rand -hex 24`, must be URL-safe since it's embedded in the [< db_app_role_name >] connection URI),
 [% endif %]plus app secrets.
@@ -57,7 +57,8 @@ export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
 > right after apply; for ongoing use refresh it:
 > `doctl kubernetes cluster kubeconfig save [< client_name >]-staging`.
 [% endif %]
-> With Metabase enabled, staging needs a bigger node (Hetzner ≥ 16 GB / DO ≥ s-4vcpu-8gb; 4 GB OOMs). See §7.
+[% if app_metabase %]> With Metabase enabled, staging needs a bigger node (Hetzner ≥ 16 GB / DO ≥ s-4vcpu-8gb; 4 GB OOMs). See §7.
+[% endif %]
 
 ### 1.4 Bootstrap GitOps (Plane 2 — the one imperative step, §6.1)
 ```bash
@@ -74,8 +75,8 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
   expected). The trusted **green lock** is the **prod** milestone (`letsencrypt-prod` at
   `<sub>.[< domain >]`). Either way external-dns created the record + cert-manager issued.
 - Grafana/ArgoCD/Redis Insight resolve **only over the tailnet**.
-- Metabase queries prod data read-only; a write is rejected.
-- A broken deploy is flagged by the prod smoke gate within minutes (§6).
+[% if app_metabase %]- Metabase queries prod data read-only; a write is rejected.
+[% endif %]- A broken deploy is flagged by the prod smoke gate within minutes (§6).
 
 ---
 
