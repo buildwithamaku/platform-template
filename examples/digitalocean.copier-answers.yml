@@ -21,7 +21,7 @@ r2_account_id: "REPLACE-with-spaces-or-r2-account"
 repo_layout: polyrepo
 app_backend: true
 app_frontend: false
-app_metabase: true
+app_metabase: false # exercises the app_metabase=OFF path in CI (no Metabase app / metabase_ro role / ES)
 
 cap_preview_envs: false
 cap_service_mesh: false
