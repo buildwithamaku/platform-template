@@ -10,6 +10,9 @@ resources:
 [% if backend_public %]
 - ingress.yaml # public api.staging.[< domain >] (backend_public)
 [% endif %]
+[% if same_origin_api %]
+- same-origin-ingress.yaml # app.staging.[< domain >]/api -> backend (same_origin_api)
+[% endif %]
 images:
 - name: ghcr.io/[< registry_org >]/[< client_name >]-backend
   newName: ghcr.io/[< registry_org >]/[< client_name >]-backend

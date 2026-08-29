@@ -1,0 +1,36 @@
+# same_origin_api (staging) — route the FRONTEND host's /api to the backend, so the
+# browser calls a relative /api (no CORS, no baked API URL) and big responses skip
+# the frontend's Node hop.
+#
+# Cross-namespace by design: the frontend Ingress lives in the `frontend` namespace
+# and can't reference the backend Service (namespace `data`). So this is a SECOND
+# Ingress, in `data`, for the SAME host (app.staging.[< domain >]) with only the /api
+# path. ingress-nginx merges same-host server blocks across namespaces into one
+# server, so /api joins the frontend's app.staging.[< domain >] server.
+#
+# NO tls block on purpose: the frontend Ingress owns the cert (frontend-tls) for this
+# host; nginx serves /api under that same cert. (A tls block here would make
+# cert-manager issue a second, duplicate cert for the host.) Requires app_frontend —
+# the frontend Ingress must exist to own the host + cert.
+#
+# /api is passed through unstripped (no rewrite-target): the backend serves its routes
+# under /api (setGlobalPrefix). Bump nginx.ingress.kubernetes.io/proxy-body-size if the
+# app takes large uploads.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: backend-same-origin
+  namespace: data
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: app.staging.[< domain >]
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80

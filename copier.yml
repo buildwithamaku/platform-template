@@ -133,6 +133,18 @@ frontend_type:
   choices: [static, ssr]
   default: static
   when: "[< app_frontend >]"
+same_origin_api:
+  type: bool
+  help: >-
+    Route the frontend host's /api straight to the backend at the ingress
+    (app[.staging].<domain>/api -> backend). The browser calls a RELATIVE /api, so
+    there's no CORS and no per-env API URL baked into the client bundle, and large
+    responses (exports) skip the frontend's Node hop. Adds a second Ingress in the
+    backend's namespace on the frontend's host (nginx merges it under the frontend's
+    TLS). The frontend must serve a relative /api (not an absolute URL). Independent
+    of backend_public — enable that too only if non-browser clients need api.<domain>.
+  default: false
+  when: "[< app_frontend and app_backend >]"
 app_metabase:
   type: bool
   help: BI — Metabase read-only on prod data

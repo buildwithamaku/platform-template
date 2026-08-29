@@ -31,6 +31,7 @@ backend_health_path: /api/health # non-default → proves probe paths are parame
 backend_ready_path: /api/ready
 app_frontend: true # exercises the frontend component (Deployment/Service/Ingress + overlays)
 frontend_type: ssr # cover the Node-server path in CI (static is the default; validated locally)
+same_origin_api: true # exercises the app-host /api -> backend ingress (with backend_public also on)
 app_metabase: true
 
 cap_preview_envs: true

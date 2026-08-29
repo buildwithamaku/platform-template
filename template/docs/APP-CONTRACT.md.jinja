@@ -50,9 +50,15 @@ Compile-time public vars (`NEXT_PUBLIC_*`, `VITE_*`) are baked into the client b
 at **build**, but the platform builds one image and **promotes the same image**
 staging → prod. So a baked absolute API URL would send prod traffic to the staging API.
 
-**Preferred: same-origin.** Have the browser call a **relative** `/api` path and let
-the platform route `app[.staging].[< domain >]/api` to the backend. This removes the
-baked-URL problem *and* CORS entirely — nothing per-env is baked.
+**Preferred: same-origin** (`same_origin_api`[% if same_origin_api %], ON for this client[% endif %]).
+Have the browser call a **relative** `/api` path; the platform routes
+`app[.staging].[< domain >]/api` to the backend at the ingress. This removes the baked-URL
+problem *and* CORS entirely — nothing per-env is baked, and big responses skip the
+frontend's Node hop.
+- Your frontend must emit a **relative** `/api` (no absolute host). If it's Next.js with
+  a `rewrites()` proxy for local dev, remember Next **freezes rewrites at build time** —
+  gate the dev proxy on a build ARG so the promote image carries no rewrite and relies on
+  this ingress route in a real cluster.
 
 If you must use an absolute URL, either read it server-side at runtime (not
 `NEXT_PUBLIC_*`), or accept per-env builds (which breaks promote-the-same-artifact).
