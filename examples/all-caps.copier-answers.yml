@@ -27,8 +27,11 @@ repo_layout: polyrepo
 
 app_backend: true
 backend_public: true # exercises the backend public ingress (api[.staging].<domain>)
+backend_health_path: /api/health # non-default → proves probe paths are parameterized
+backend_ready_path: /api/ready
 app_frontend: true # exercises the frontend component (Deployment/Service/Ingress + overlays)
 frontend_type: ssr # cover the Node-server path in CI (static is the default; validated locally)
+same_origin_api: true # exercises the app-host /api -> backend ingress (with backend_public also on)
 app_metabase: true
 
 cap_preview_envs: true
@@ -36,6 +39,7 @@ cap_service_mesh: false # deferred — not built yet
 cap_event_bus: true
 cap_vector_db: true
 cap_db_app_role: true # two-role RLS runtime role (needs db_source=cnpg, set below)
+db_app_role_name: app_user # non-default → proves the runtime role name is parameterized
 cap_single_writer: true # single-writer worker Deployment (needs app_backend)
 cap_model_serving: false # deferred — not built yet
 

@@ -3,7 +3,7 @@
 # Image TAG is set by the overlay (bumped by CI); base leaves it bare.
 [% if cap_db_app_role %]#
 # cap_db_app_role ON: runtime connects as the least-privilege NON-OWNER role via
-# [< client_name >]-db-app-rw (app_rw — no DDL, RLS-subject). Schema migrations still run
+# [< client_name >]-db-app-rw ([< db_app_role_name >] — no DDL, RLS-subject). Schema migrations still run
 # as the OWNER through the PreSync migration Job ([< client_name >]-db-app), so DDL and
 # runtime are cleanly separated.
 [% else %]#
@@ -32,8 +32,8 @@ spec:
       imagePullSecrets:
         - name: ghcr-pull
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
+        runAsNonRoot: true # the app image MUST declare a NUMERIC non-root USER (APP-CONTRACT);
+        # the factory does not pin a uid — the image's USER wins (distroless=65532, node-slim=1000, ...).
       containers:
         - name: backend
           image: ghcr.io/[< registry_org >]/[< client_name >]-backend
@@ -54,11 +54,11 @@ spec:
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector-opentelemetry-collector.monitoring:4318
           readinessProbe:
-            httpGet: { path: /readyz, port: http }
+            httpGet: { path: [< backend_ready_path >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: /healthz, port: http }
+            httpGet: { path: [< backend_health_path >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 15
           resources:

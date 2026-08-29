@@ -1,0 +1,70 @@
+# App contract — what your app must do to run on this platform
+
+This is the **whole** contract. The platform adapts to your app through copier
+answers (probe paths, DB role name, ports, image tags); your app only has to meet
+the handful of things below — all of which a well-built 12-factor container already
+does. If your app does these, `[< client_name >]` deploys it with no bespoke changes.
+
+## The 6 requirements
+
+1. **Ship a Dockerfile** at the build context (`<context>/Dockerfile`; a monorepo
+   passes the service subdir). The platform builds container images only — there is
+   no Nixpacks/buildpack fallback. `build-and-bump` fails fast if it's missing.
+
+2. **Run as a NUMERIC non-root `USER`** in the image (e.g. `USER 1000`, not
+   `USER node`). Kubernetes enforces `runAsNonRoot` and can only verify it from a
+   numeric uid. The factory does **not** pin a uid — your image's `USER` wins
+   (distroless `nonroot` = 65532, node-slim = 1000, nginx-unprivileged = 101).
+
+3. **Listen on `$PORT`.** The platform injects it (backend 8080, SSR frontend 3000).
+   Bind `0.0.0.0`, not `localhost`.
+
+4. **Expose a liveness and a readiness endpoint.** Any paths — you tell the platform
+   which via `backend_health_path` (this client: `[< backend_health_path | default('/healthz') >]`)
+   and `backend_ready_path` (`[< backend_ready_path | default('/readyz') >]`). Readiness
+   should reflect real dependencies (e.g. `SELECT 1`); liveness should not.
+
+5. **Read config and secrets from env.** DB connection from the injected secret
+   (`DATABASE_URL`, or discrete `DB_*`); app secrets (JWT, encryption keys, SMTP, ...)
+   from env — the platform delivers them from Infisical. Fail fast if a required var
+   is missing.
+
+6. **Do not run schema migrations at boot.** Honour a flag (`DB_MIGRATIONS_RUN=false`
+   or equivalent) so the runtime never issues DDL. Migrations run out-of-band as the
+   DB **owner** via the PreSync migration Job; the runtime connects as a
+   least-privilege role.
+[% if cap_db_app_role %]   - This client uses the two-role model (`cap_db_app_role`). The runtime role is
+     **`[< db_app_role_name >]`** (non-owner, `NOBYPASSRLS`). Your RLS policies and grant
+     scripts must reference **this exact role name**, or FORCE-RLS denies it every row.
+     Set `db_app_role_name` to match whatever your SQL already uses.
+[% endif %]
+[% if cap_single_writer %]
+## If you have in-process schedulers (`cap_single_writer`)
+Gate scheduler registration on `SCHEDULER_ENABLED == "true"`. The platform runs one
+worker replica with it true and all web replicas with it false, so a `@Cron` fires in
+exactly one place.
+[% endif %]
+[% if app_frontend %]
+## Frontend: the public API URL (paved road)
+Compile-time public vars (`NEXT_PUBLIC_*`, `VITE_*`) are baked into the client bundle
+at **build**, but the platform builds one image and **promotes the same image**
+staging → prod. So a baked absolute API URL would send prod traffic to the staging API.
+
+**Preferred: same-origin** (`same_origin_api`[% if same_origin_api %], ON for this client[% endif %]).
+Have the browser call a **relative** `/api` path; the platform routes
+`app[.staging].[< domain >]/api` to the backend at the ingress. This removes the baked-URL
+problem *and* CORS entirely — nothing per-env is baked, and big responses skip the
+frontend's Node hop.
+- Your frontend must emit a **relative** `/api` (no absolute host). If it's Next.js with
+  a `rewrites()` proxy for local dev, remember Next **freezes rewrites at build time** —
+  gate the dev proxy on a build ARG so the promote image carries no rewrite and relies on
+  this ingress route in a real cluster.
+
+If you must use an absolute URL, either read it server-side at runtime (not
+`NEXT_PUBLIC_*`), or accept per-env builds (which breaks promote-the-same-artifact).
+[% endif %]
+
+## What the platform handles for you
+Cluster, TLS + DNS, ingress, the DB (+ backups/PITR), secrets delivery, image
+build/scan/push, GitOps deploy with PreSync migrations and PostSync smoke, metrics/
+logs/traces, and private admin access. You ship a container that meets the 6 points.

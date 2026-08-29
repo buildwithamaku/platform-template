@@ -30,7 +30,7 @@ Every secret lives here; ESO syncs them in. Required keys:
 `SLACK_WEBHOOK_URL`, `METABASE_PRODUCT_DB_RO_PASSWORD`, `METABASE_OAUTH_CLIENT_ID`/`_SECRET`/`_COOKIE_SECRET`
 (cookie = `openssl rand -hex 16`), `TS_OAUTH_CLIENT_ID`/`_SECRET`,
 [% if cap_db_app_role %]`APP_DB_RW_PASSWORD` (the least-privilege runtime DB role's password —
-`openssl rand -hex 24`, must be URL-safe since it's embedded in the app_rw connection URI),
+`openssl rand -hex 24`, must be URL-safe since it's embedded in the [< db_app_role_name >] connection URI),
 [% endif %]plus app secrets.
 
 ### 1.3 Provision the cluster (Plane 1)
@@ -80,6 +80,14 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
 ---
 
 ## 2. Day-2 — shipping changes
+- **Containerized-only contract**: every app ships its own `Dockerfile` at its build
+  context (`<context>/Dockerfile`; a monorepo passes the service subdir). The platform
+  deploys container images only — there is **no** Nixpacks/buildpack fallback (deliberate:
+  pinned base image, non-root, auditable layers). `build-and-bump` fails fast if the
+  Dockerfile is missing. PaaS migrants (Railway/Render Nixpacks) must author one first — see §8.
+  The full, minimal app contract (6 points: Dockerfile, numeric non-root USER, `$PORT`, health/ready
+  endpoints, env config, no boot-time migrations) is **`docs/APP-CONTRACT.md`** — the factory adapts
+  to everything else via copier answers (probe paths, DB role name, ...).
 - **Staging is automatic**: merge to an app repo → CI builds a SHA-tagged image → the
   deployer App bumps `overlays/staging` → ArgoCD deploys → PreSync migration → PostSync full e2e.
 - **Prod is a promotion PR**: bump `clusters/apps/<app>/overlays/prod/kustomization.yaml`
@@ -173,11 +181,11 @@ in `clusters/platform-config/database/cluster.yaml`). Use it from the app's norm
 [% endif %]
 [% if cap_db_app_role %]
 ### Two-role DB / RLS runtime role (`cap_db_app_role`)
-The app connects at runtime as **`app_rw`** — a least-privilege, non-owner role that can
+The app connects at runtime as **`[< db_app_role_name >]`** — a least-privilege, non-owner role that can
 `SELECT/INSERT/UPDATE/DELETE` but run no DDL. Schema migrations run out-of-band as the **owner**
-(`appuser`) through the backend PreSync migration Job. Because `app_rw` is non-owner + non-superuser
+(`appuser`) through the backend PreSync migration Job. Because `[< db_app_role_name >]` is non-owner + non-superuser
 (CNPG creates it `NOBYPASSRLS`), any Postgres **row-level security** the app declares is enforced against it.
-- **Files** (`clusters/platform-config/database/`): the `app_rw` managed role in `cluster.yaml`;
+- **Files** (`clusters/platform-config/database/`): the `[< db_app_role_name >]` managed role in `cluster.yaml`;
   `app-rw-credentials` (basic-auth → CNPG); `[< client_name >]-db-app-rw` (the app's connection Secret —
   `uri` + discrete `host`/`port`/`dbname`/`username`/`password`); `app-rw-grants-job` (PostSync, grants read-write).
 - **Contract:** the runtime Deployment reads `[< client_name >]-db-app-rw` (`uri`); the migration Job keeps the

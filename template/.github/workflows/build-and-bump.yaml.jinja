@@ -47,6 +47,17 @@ jobs:
       - uses: actions/checkout@v4
       - id: tag
         run: echo "tag=sha-$(git rev-parse --short=7 HEAD)" >> "$GITHUB_OUTPUT"
+      # ── containerized-only contract: every app ships its own Dockerfile at the
+      # build context. This platform builds container images only — there is no
+      # Nixpacks/buildpack fallback (deliberate: pinned base image, non-root,
+      # auditable layers). Fail fast with a clear message instead of a cryptic
+      # buildx error deep in the run.
+      - name: Require a Dockerfile at the build context
+        run: |
+          if [ ! -f "${{ inputs.context }}/Dockerfile" ]; then
+            echo "::error::no Dockerfile at '${{ inputs.context }}/Dockerfile'. This platform deploys container images only (no Nixpacks/buildpack fallback) — add a Dockerfile at the build context. See RUNBOOK §2 (per frontend_type: Node standalone for ssr, nginx-unprivileged for static) / §8 for PaaS migration."
+            exit 1
+          fi
       - name: gitleaks (blocking secret scan)
         run: |
           V=8.21.2

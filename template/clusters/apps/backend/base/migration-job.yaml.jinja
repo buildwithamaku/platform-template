@@ -23,8 +23,7 @@ spec:
       imagePullSecrets:
         - name: ghcr-pull
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532 # distroless:nonroot uid — kubelet needs a numeric uid to verify non-root
+        runAsNonRoot: true # numeric non-root USER in the image (APP-CONTRACT); factory pins no uid
       containers:
         - name: migrate
           image: ghcr.io/[< registry_org >]/[< client_name >]-backend
