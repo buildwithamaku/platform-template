@@ -46,4 +46,4 @@ cap_model_serving: false # deferred — not built yet
 vpn: tailscale
 idp: google
 db_source: cnpg
-prod_profile: false
+prod_profile: true # exercises the prod_profile path (Valkey requirepass ES + statefulset auth)
