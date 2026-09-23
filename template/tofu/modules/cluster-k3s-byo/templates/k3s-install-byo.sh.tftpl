@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Rendered per-node by OpenTofu (templatefile) for the bring-your-own-nodes
+# (cloud = baremetal) path. $${...} = OpenTofu substitution; $VARS = bash runtime.
+# Unlike the Hetzner install this pins NO private NIC (no cloud private network),
+# keeps klipper (ServiceLB) so the ingress LoadBalancer is fulfilled on the node
+# IP, and uses NO external cloud-controller (no CCM). PVCs bind k3s's built-in
+# local-path StorageClass.
+set -euo pipefail
+
+command -v curl >/dev/null 2>&1 || { apt-get update && apt-get install -y curl; }
+
+mkdir -p /etc/rancher/k3s
+%{ if is_server ~}
+cat > /etc/rancher/k3s/config.yaml <<EOF
+token: "${k3s_token}"
+node-ip: "${node_ip}"
+write-kubeconfig-mode: "0644"
+tls-san:
+%{ for san in tls_sans ~}
+  - "${san}"
+%{ endfor ~}
+# Only traefik is disabled — we run ingress-nginx. klipper (servicelb) STAYS: with
+# no cloud LB it is what fulfils the ingress-nginx LoadBalancer Service on the node IP.
+disable:
+  - traefik
+EOF
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - server
+%{ else ~}
+cat > /etc/rancher/k3s/config.yaml <<EOF
+token: "${k3s_token}"
+node-ip: "${node_ip}"
+server: "https://${server_ip}:6443"
+EOF
+# Wait for the control-plane API to accept connections before joining.
+until timeout 2 bash -c "echo > /dev/tcp/${server_ip}/6443" 2>/dev/null; do
+  sleep 4
+done
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - agent
+%{ endif ~}

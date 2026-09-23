@@ -1,0 +1,36 @@
+# Example: a bring-your-own-nodes client (cloud = baremetal) — e.g. VPS on
+# InterServer/OVH/Vultr or on-prem. Render with:
+#   copier copy --data-file examples/baremetal.copier-answers.yml --defaults gh:... byoclient-platform
+#
+# PURPOSE: the CI fixture that gives the baremetal infra path (cluster-k3s-byo +
+# the cloud=baremetal live branches) render + tofu-validate coverage. The node IPs
+# are NOT here — they go in terraform.tfvars (per-deploy); see terraform.tfvars.example.
+client_name: byoclient
+domain: byoclient.dev
+registry_org: byoclient-io
+platform_repo: byoclient-platform
+acme_email: ops@byoclient.dev
+
+cloud: baremetal
+# region / *_node_type / *_node_count are not asked for baremetal (nodes are yours).
+
+r2_account_id: "0000000000000000000000000000cafe"
+
+repo_layout: polyrepo
+
+app_backend: true
+app_frontend: false
+app_metabase: false
+
+cap_preview_envs: false
+cap_service_mesh: false
+cap_event_bus: false
+cap_vector_db: false
+cap_db_app_role: false
+cap_single_writer: false
+cap_model_serving: false
+
+vpn: tailscale
+idp: google
+db_source: cnpg
+prod_profile: false

@@ -1,0 +1,25 @@
+# Copy to terraform.tfvars (git-ignored) and fill in.
+[% if cloud == "hetzner" %]
+# hcloud_token is better supplied as TF_VAR_hcloud_token in your shell/CI secret.
+# hcloud_token = "xxxxxxxx"   # prefer: export TF_VAR_hcloud_token=...
+
+ssh_public_keys = [
+  # "ssh-ed25519 AAAA... you@laptop",
+]
+
+# Lock the API + SSH to your IP. Find it with: curl -s ifconfig.me
+api_allowed_cidrs = [
+  # "203.0.113.7/32",
+]
+[% elif cloud == "digitalocean" %]
+# do_token is better supplied as TF_VAR_do_token in your shell/CI secret.
+# do_token = "dop_v1_xxxxxxxx"   # prefer: export TF_VAR_do_token=...
+[% elif cloud == "baremetal" %]
+# You provision the nodes first (InterServer/OVH/…), then fill in their IPs.
+# The control-plane IP is the API server; DNS for app/api hosts points at a node IP.
+control_plane_ip     = "203.0.113.10"
+agent_ips            = [] # e.g. ["203.0.113.11", "203.0.113.12"] — empty = single node
+ssh_user             = "root"
+ssh_private_key_path = "~/.ssh/id_ed25519" # a key that logs into every node
+# api_tls_sans       = ["api.example.com"]  # optional extra API cert SANs
+[% endif %]

@@ -43,6 +43,25 @@ module "cluster" {
     part_of     = "[< client_name >]"
   }
 }
+[% elif cloud == "baremetal" %]
+module "cluster" {
+  source = "../../modules/cluster-k3s-byo"
+
+  cluster_name = "[< client_name >]-staging"
+
+  # You provision the nodes (InterServer/OVH/…); tofu installs k3s over SSH.
+  # Supply the IPs + key path in terraform.tfvars (see terraform.tfvars.example).
+  control_plane_ip     = var.control_plane_ip
+  agent_ips            = var.agent_ips
+  ssh_user             = var.ssh_user
+  ssh_private_key_path = var.ssh_private_key_path
+  api_tls_sans         = var.api_tls_sans
+
+  labels = {
+    environment = "staging"
+    part_of     = "[< client_name >]"
+  }
+}
 [% endif %]
 
 # Write the kubeconfig next to the root so the acceptance test is a one-liner:

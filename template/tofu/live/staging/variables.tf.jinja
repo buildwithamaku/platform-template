@@ -21,4 +21,32 @@ variable "do_token" {
   sensitive   = true
   description = "DigitalOcean API token. Supply via TF_VAR_do_token or a git-ignored *.tfvars."
 }
+[% elif cloud == "baremetal" %]
+variable "control_plane_ip" {
+  type        = string
+  description = "Public IP of the pre-provisioned control-plane node (SSH-reachable as ssh_user)."
+}
+
+variable "agent_ips" {
+  type        = list(string)
+  default     = []
+  description = "Public IPs of pre-provisioned agent nodes (empty = single-node cluster)."
+}
+
+variable "ssh_user" {
+  type        = string
+  default     = "root"
+  description = "SSH user with root on every node."
+}
+
+variable "ssh_private_key_path" {
+  type        = string
+  description = "Path to the SSH private key that logs into every node."
+}
+
+variable "api_tls_sans" {
+  type        = list(string)
+  default     = []
+  description = "Extra API-server cert SANs (e.g. a DNS name); the control-plane IP is always included."
+}
 [% endif %]

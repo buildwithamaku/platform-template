@@ -42,6 +42,8 @@ jobs:
             --vcs-ref HEAD . /tmp/render-caps       # built capability components turned ON (frontend_type=ssr)
           copier copy --data-file examples/frontend-static.copier-answers.yml --defaults --trust \
             --vcs-ref HEAD . /tmp/render-fe         # frontend_type=static (the DEFAULT mode)
+          copier copy --data-file examples/baremetal.copier-answers.yml --defaults --trust \
+            --vcs-ref HEAD . /tmp/render-byo        # baremetal (cluster-k3s-byo, bring-your-own-nodes)
 
       - name: No stale copier vars (both renders)
         # Catches a half-converted template file (a {{ }} left after the [< >]
@@ -52,7 +54,7 @@ jobs:
         run: |
           vars=$(grep -E '^[a-z][a-zA-Z0-9_]*:' copier.yml | sed 's/:.*//' | paste -sd '|' -)
           echo "guarding: $vars"
-          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do /tmp/render-caps /tmp/render-fe; then
+          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do /tmp/render-caps /tmp/render-fe /tmp/render-byo; then
             echo "::error::stale {{ copier-var }} in a render — a template file was not converted to [< >]"; exit 1
           fi
           echo "no stale copier vars ✓"
@@ -66,7 +68,7 @@ jobs:
           V=1.8.5
           curl -sSfL "https://github.com/opentofu/opentofu/releases/download/v${V}/tofu_${V}_linux_amd64.zip" -o /tmp/tofu.zip
           unzip -oq /tmp/tofu.zip -d /tmp/tofubin && sudo install /tmp/tofubin/tofu /usr/local/bin/tofu
-          for d in /tmp/render /tmp/render-do; do
+          for d in /tmp/render /tmp/render-do /tmp/render-byo; do
             tofu fmt -recursive "$d/tofu" >/dev/null   # normalize (parse check)
             for env in staging prod; do
               echo "== validate $d/$env =="
@@ -81,9 +83,9 @@ jobs:
           curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.3
           sudo mv kustomize /usr/local/bin/
 
-      - name: kubeconform rendered manifests (caps-off + caps-on + frontend-static)
+      - name: kubeconform rendered manifests (caps-off + caps-on + frontend-static + baremetal)
         run: |
-          for d in /tmp/render /tmp/render-caps /tmp/render-fe; do
+          for d in /tmp/render /tmp/render-caps /tmp/render-fe /tmp/render-byo; do
             kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
               -schema-location default -schema-location "$SCHEMA" "$d/clusters"
           done
