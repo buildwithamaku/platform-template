@@ -31,7 +31,8 @@ Every secret lives here; ESO syncs them in. Required keys:
 (cookie = `openssl rand -hex 16`), [% endif %]`TS_OAUTH_CLIENT_ID`/`_SECRET`,
 [% if cap_db_app_role %]`APP_DB_RW_PASSWORD` (the least-privilege runtime DB role's password —
 `openssl rand -hex 24`, must be URL-safe since it's embedded in the [< db_app_role_name >] connection URI),
-[% endif %]plus app secrets.
+[% endif %][% if prod_profile %]`VALKEY_PASSWORD` (`openssl rand -hex 24` — the cache's requirepass; without it the
+valkey pod can't start), [% endif %]plus app secrets.
 
 ### 1.3 Provision the cluster (Plane 1)
 [% if cloud == "hetzner" %]
@@ -145,7 +146,7 @@ from Infisical, so **rotation = update the value in Infisical** (ESO re-syncs �
 
 ## 7. Prod hardening checklist (staging ships smaller)
 - [ ] **Loki → R2 object storage** (default is a 3 Gi PVC / 72 h retention — lost on node loss).
-- [ ] **Valkey `requirepass`** (Redis Insight has no app-auth of its own).
+- [[% if prod_profile %]x[% else %] [% endif %]] **Valkey `requirepass`** — [% if prod_profile %]**automated by `prod_profile`** (ESO → `VALKEY_PASSWORD`); clients must authenticate.[% else %]set `prod_profile: true` to automate it (ESO → `VALKEY_PASSWORD`).[% endif %] (Redis Insight has no app-auth of its own.)
 - [ ] **Tighten `api_allowed_cidrs`** to the tailnet once the Tailscale API proxy is live.
 - [ ] **Tailscale ACL grant** restricting who can *reach* `tag:k8s` devices (tag = creation, not access).
 - [ ] Prod `refclient-e2e` image tag bumped via PR + the ghcr package authorized for `ghcr-pull`.

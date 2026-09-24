@@ -277,10 +277,15 @@ cap_model_serving:
 # ── Platform choices (see phase-8-copier-decisions) ─────────────────────────
 vpn:
   type: str
-  help: Private admin access backend. tailscale=SaaS; headscale/netbird=self-hosted (no per-seat).
-        NOTE switching from tailscale changes the auth model (pre-auth keys vs OAuth).
+  help: Private admin access backend. tailscale=SaaS. headscale/netbird are on the roadmap
+        (self-hosted, no per-seat) but NOT implemented yet — only tailscale renders a working VPN.
   choices: [tailscale, headscale, netbird]
   default: tailscale
+  validator: >-
+    [% if vpn != 'tailscale' %]
+    vpn=[< vpn >] is not implemented yet — only 'tailscale' renders a working VPN today.
+    (headscale/netbird are a planned self-hosted path; picking them would silently ship Tailscale.)
+    [% endif %]
 
 idp:
   type: str
@@ -301,6 +306,9 @@ db_source:
 
 prod_profile:
   type: bool
-  help: Enable prod hardening (Loki->object storage + retention, Valkey password, tightened
-        API firewall, ...) — see prod-hardening-deferred
+  help: >-
+    Prod hardening. Currently AUTOMATES the Valkey requirepass (ESO -> Infisical
+    VALKEY_PASSWORD; the cache stops being open on the tailnet). The remaining
+    hardening items (Loki -> object storage + retention, tightened API firewall)
+    are still the manual RUNBOOK §7 checklist — this flag will grow to cover them.
   default: false

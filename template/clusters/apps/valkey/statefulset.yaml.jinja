@@ -1,7 +1,8 @@
 # Valkey (D-05 cache) — the BSD-licensed Redis fork. Plain StatefulSet on the
 # official image (no Bitnami). Single instance with AOF persistence: enough for
-# staging. Prod HA (Valkey Sentinel/cluster) + AUTH via ESO are a follow-up;
-# for now it's ClusterIP-only (never publicly exposed).
+# staging. Prod HA (Valkey Sentinel/cluster) is still a follow-up; it is always
+# ClusterIP-only (never publicly exposed).
+[% if prod_profile %]# prod_profile: AUTH is on — --requirepass from the valkey-auth Secret (ESO).[% else %]# AUTH is OFF (tailnet is the boundary); enable it with prod_profile.[% endif %]
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -10,6 +11,10 @@ metadata:
   labels:
     app.kubernetes.io/name: valkey
     app.kubernetes.io/part-of: [< client_name >]
+[% if prod_profile %]
+  annotations:
+    reloader.stakater.com/auto: "true" # roll the pod when VALKEY_PASSWORD rotates
+[% endif %]
 spec:
   serviceName: valkey
   replicas: 1
@@ -29,7 +34,22 @@ spec:
       containers:
         - name: valkey
           image: valkey/valkey:8-alpine
-          args: ["--appendonly", "yes", "--dir", "/data"]
+          args:
+            - "--appendonly"
+            - "yes"
+            - "--dir"
+            - "/data"
+[% if prod_profile %]
+            - "--requirepass"
+            - "$(VALKEY_PASSWORD)" # k8s expands $(ENV) from the env below at start
+[% endif %]
+[% if prod_profile %]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom: { secretKeyRef: { name: valkey-auth, key: password } }
+            - name: REDISCLI_AUTH # so the `valkey-cli ping` probes authenticate
+              valueFrom: { secretKeyRef: { name: valkey-auth, key: password } }
+[% endif %]
           ports:
             - { containerPort: 6379, name: valkey }
           volumeMounts:
