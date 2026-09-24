@@ -19,7 +19,7 @@ The factory serves an agency model: many clients, each getting an identical, ind
 ### What "done" looks like
 
 ```bash
-copier copy gh:amakusolutions/platform-template acme-platform   # answer ~10 questions
+copier copy gh:buildwithamaku/platform-template acme-platform   # answer ~10 questions
 cd acme-platform/tofu/live/prod && tofu apply             # ~10 min: VMs, k3s, LB, DNS
 ./bootstrap.sh                                            # ArgoCD + one root secret
 # ArgoCD reconciles the full platform from Git (~15 min)
@@ -140,7 +140,7 @@ These are load-bearing — the factory's repeatability depends on every client f
 
 ### 5.1 Naming
 - Clusters: `<client>-<env>` → `acme-prod`.
-- Images: `ghcr.io/amakusolutions/<client>-<app>:sha-<7hex>` — **git SHA tags only**. Never `latest`, never mutable tags.
+- Images: `ghcr.io/buildwithamaku/<client>-<app>:sha-<7hex>` — **git SHA tags only**. Never `latest`, never mutable tags.
 - K8s labels on everything: `app.kubernetes.io/name`, `app.kubernetes.io/part-of: <client>`, `env: <staging|prod>`.
 
 ### 5.2 Environments
@@ -163,7 +163,7 @@ These are load-bearing — the factory's repeatability depends on every client f
 
 ### 5.5 Git / CI
 - Conventional commits. Platform repo `main` is protected; prod overlay changes require 1 approval + green CI.
-- Cross-repo automation authenticates as a **GitHub App** (`amakusolutions-deployer`), never a personal PAT.
+- Cross-repo automation authenticates as a **GitHub App** (`buildwithamaku-deployer`), never a personal PAT.
 - Rollback = `git revert` of the tag-bump commit. There is no other rollback mechanism, deliberately.
 
 ## 6. Core Flows (specification)
@@ -216,7 +216,7 @@ Target wall-clock: **< 1 day**. Measured, not vibes — Phase 8 acceptance.
 ## 7. What survives from `maestroh-infra`
 - **Keep (adapted):** S3-compatible state backend pattern, tfsec/Checkov CI gates, pre-commit config, docs discipline, VPC design thinking (informs the AWS module).
 - **Drop:** the ~16 unwired Terraform modules (EKS/RDS/ALB/KMS/backup/cloudwatch-* etc.) — they are Plane-1 solutions to Plane-2 problems; the `vpc-placeholder` wiring; per-env copy-pasted roots.
-- This repo stays as-is for reference; the factory is a **new repository** (`amakusolutions/platform-template`).
+- This repo stays as-is for reference; the factory is a **new repository** (`buildwithamaku/platform-template`).
 
 ## 8. Phase Plan
 

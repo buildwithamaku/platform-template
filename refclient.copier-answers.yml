@@ -2,10 +2,10 @@
 #   copier copy --data-file refclient.copier-answers.yml --defaults gh:buildwithamaku/platform-template refclient-platform
 # Doubles as the Phase-8 reproducibility proof and the worked example for client #2.
 client_name: refclient
-domain: amakusolutions.com
+domain: refclient.dev
 registry_org: buildwithamaku
 platform_repo: platform-template
-acme_email: amakudavid01@gmail.com
+acme_email: ops@refclient.dev
 
 cloud: hetzner
 region: nbg1
@@ -13,7 +13,7 @@ staging_node_type: cpx22
 prod_node_type: cpx32
 prod_node_count: 3
 gpu: false
-r2_account_id: bda2c3e234aa8153f04b3b8b14c42887
+r2_account_id: "0000000000000000000000000000cafe"
 
 repo_layout: polyrepo
 
