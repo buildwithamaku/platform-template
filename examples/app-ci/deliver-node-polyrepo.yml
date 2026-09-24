@@ -1,0 +1,30 @@
+# Copy to  <your-app-repo>/.github/workflows/deliver.yml
+# A Node app (NestJS/Express/Next-API/…) in its OWN repo (polyrepo).
+#
+# On push to main it builds + scans + tests the image, pushes it to GHCR, then — as the
+# <ORG>-deployer GitHub App — commits the SHA-tag bump to the platform repo's staging overlay,
+# which Argo CD then deploys. This repo never touches the cluster.
+#
+# Prereqs:
+#   - a Dockerfile at the repo root with a NUMERIC non-root USER  (see APP-CONTRACT.md)
+#   - the <ORG>-deployer GitHub App installed on THIS repo AND the platform repo (contents:write)
+#   - secrets DEPLOYER_APP_ID + DEPLOYER_PRIVATE_KEY set in THIS repo
+# Replace <ORG> and <CLIENT> below.
+name: deliver
+on:
+  push:
+    branches: [main]
+jobs:
+  ship:
+    permissions:
+      contents: read
+      packages: write
+    uses: <ORG>/<CLIENT>-platform/.github/workflows/build-and-bump.yaml@main
+    with:
+      app: backend                      # overlay dir: clusters/apps/<app>/overlays/staging
+      image: ghcr.io/<ORG>/<CLIENT>-backend
+      language: node
+      context: .                        # Dockerfile is at the repo root
+    secrets:
+      deployer_app_id: ${{ secrets.DEPLOYER_APP_ID }}
+      deployer_private_key: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
