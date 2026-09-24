@@ -71,15 +71,19 @@ acme_email:
 cloud:
   type: str
   help: >-
-    Cloud provider. hetzner = self-managed k3s HA (cluster-k3s); digitalocean =
-    managed DOKS control plane + node pools (cluster-doks).
-  choices: [hetzner, digitalocean]
+    Infra target. hetzner = self-managed k3s HA (cluster-k3s); digitalocean =
+    managed DOKS (cluster-doks); baremetal = bring-your-own-nodes k3s over SSH
+    (cluster-k3s-byo) for any VPS/dedicated host — InterServer, OVH, Vultr, on-prem.
+    baremetal: you provision the nodes + put their IPs in terraform.tfvars; k3s's
+    klipper serves ingress on the node IP and local-path backs PVCs (no cloud LB/CSI).
+  choices: [hetzner, digitalocean, baremetal]
   default: hetzner
 
 region:
   type: str
   help: Region/location (hetzner nbg1|fsn1|hel1 · digitalocean fra1|nyc1|ams3 · ...)
   default: nbg1
+  when: "[< cloud != 'baremetal' >]" # baremetal nodes are pre-provisioned; region is N/A
 
 k8s_version:
   type: str
@@ -157,16 +161,19 @@ staging_node_type:
     OOMs the stack), so the default is cpx42 when Metabase is on. Run
     scripts/hetzner-server-types.sh <region> to confirm it's sold there.
   default: "[% if app_metabase %]cpx42[% else %]cpx22[% endif %]"
+  when: "[< cloud != 'baremetal' >]" # baremetal nodes are pre-provisioned (sized by you)
 
 prod_node_type:
   type: str
   help: Prod node instance type
   default: cpx32
+  when: "[< cloud != 'baremetal' >]"
 
 prod_node_count:
   type: int
   help: Prod nodes (3 = embedded-etcd HA)
   default: 3
+  when: "[< cloud != 'baremetal' >]"
 
 gpu:
   type: bool

@@ -23,6 +23,7 @@ spec:
           service:
             type: LoadBalancer
             externalTrafficPolicy: Local
+[% if cloud == "hetzner" %]
             annotations:
               # Consumed by hcloud CCM to provision + shape the Hetzner LB.
               load-balancer.hetzner.cloud/name: [< client_name >]-staging-ingress
@@ -33,6 +34,7 @@ spec:
               # private IP from the Service status, so external-dns publishes
               # ONLY the public IP (no dead 10.0.x A record).
               load-balancer.hetzner.cloud/disable-private-ingress: "true"
+[% endif %]
           ingressClassResource:
             default: true
   destination:

@@ -57,6 +57,23 @@ export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
 > ⚠️ The DOKS kubeconfig is token-based and **expires (~7 days)**. Fine for the bootstrap
 > right after apply; for ongoing use refresh it:
 > `doctl kubernetes cluster kubeconfig save [< client_name >]-staging`.
+[% elif cloud == "baremetal" %]
+Bring-your-own-nodes: **provision the VPS/dedicated hosts yourself first** (InterServer/OVH/…),
+then tofu installs k3s over SSH.
+```bash
+# 1. Provision node(s) on your host's panel/API: recent Debian/Ubuntu, root SSH.
+#    Single node = simplest. Open 80/443 on the node DNS points at; for multi-node also
+#    6443/tcp + 8472/udp + 10250/tcp between nodes.
+cd tofu/live/staging
+# 2. Fill terraform.tfvars from terraform.tfvars.example: control_plane_ip, agent_ips,
+#    ssh_private_key_path (a key that logs into every node as root).
+tofu init && tofu apply                 # installs k3s over SSH; writes ./kubeconfig
+export KUBECONFIG=$PWD/kubeconfig && kubectl get nodes
+```
+> No cloud LB/CSI: k3s **klipper** serves ingress on the node IP, and **local-path** backs
+> PVCs (node-local — the CNPG PITR backup to R2 still protects the app DB). Point your
+> app/api DNS A records at the control-plane (or an agent) public IP. Single control-plane =
+> no API HA; losing that node = control down until restored. See modules/cluster-k3s-byo/README.
 [% endif %]
 [% if app_metabase %]> With Metabase enabled, staging needs a bigger node (Hetzner ≥ 16 GB / DO ≥ s-4vcpu-8gb; 4 GB OOMs). See §7.
 [% endif %]

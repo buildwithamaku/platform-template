@@ -23,4 +23,14 @@ output "cluster_id" {
   description = "DOKS cluster id (use with `doctl kubernetes cluster kubeconfig save` to refresh the kubeconfig)."
   value       = module.cluster.cluster_id
 }
+[% elif cloud == "baremetal" %]
+output "api_endpoint" {
+  description = "k3s API endpoint (the control-plane public IP)."
+  value       = module.cluster.api_endpoint
+}
+
+output "server_public_ips" {
+  description = "Public IPv4 of every node (control plane first, then agents)."
+  value       = module.cluster.server_public_ips
+}
 [% endif %]
