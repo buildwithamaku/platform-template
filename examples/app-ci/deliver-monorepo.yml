@@ -1,0 +1,45 @@
+# Copy to  <your-monorepo>/.github/workflows/deliver.yml
+# One repo holding several services (e.g. backend/ + frontend/). Call build-and-bump ONCE PER
+# service with a different `app`, `image`, and `context` (the service subdir). Each service needs
+# its own Dockerfile at its context.
+#
+# The two jobs are SERIALIZED (frontend `needs: backend`) so their two overlay-bump commits to the
+# platform repo don't race. (If you'd rather build only what changed, add a path filter such as
+# dorny/paths-filter per job.)
+#
+# Prereqs (same as polyrepo): numeric non-root USER in each Dockerfile; the <ORG>-deployer App on
+# this repo + the platform repo; DEPLOYER_APP_ID + DEPLOYER_PRIVATE_KEY secrets here.
+# Replace <ORG> and <CLIENT> below.
+name: deliver
+on:
+  push:
+    branches: [main]
+jobs:
+  backend:
+    permissions:
+      contents: read
+      packages: write
+    uses: <ORG>/<CLIENT>-platform/.github/workflows/build-and-bump.yaml@main
+    with:
+      app: backend
+      image: ghcr.io/<ORG>/<CLIENT>-backend
+      language: node                    # or: go
+      context: backend                  # the backend service subdir
+    secrets:
+      deployer_app_id: ${{ secrets.DEPLOYER_APP_ID }}
+      deployer_private_key: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
+
+  frontend:
+    needs: backend                      # serialize the platform-repo overlay bumps
+    permissions:
+      contents: read
+      packages: write
+    uses: <ORG>/<CLIENT>-platform/.github/workflows/build-and-bump.yaml@main
+    with:
+      app: frontend
+      image: ghcr.io/<ORG>/<CLIENT>-frontend
+      language: node
+      context: frontend                 # the frontend service subdir
+    secrets:
+      deployer_app_id: ${{ secrets.DEPLOYER_APP_ID }}
+      deployer_private_key: ${{ secrets.DEPLOYER_PRIVATE_KEY }}
