@@ -40,6 +40,15 @@ class RuntimeTests(unittest.TestCase):
         self.assertNotIn("owner.env", runtime)
         self.assertEqual(len([c for c in self.calls if c[:2] == ("rm", "--force")]), 2)
 
+    def test_frontend_checks_both_declared_http_probes(self):
+        self.calls = []
+        service = {"_build": Path("/tmp/app"), "config": {"ready_path": "/ready", "health_path": "/live"}}
+        with patch("factory_cli.runtime.docker", side_effect=self.fake_docker), \
+             patch("factory_cli.runtime.probe", return_value=True) as probe:
+            check_service("frontend", service)
+        self.assertEqual([call.args[0] for call in probe.call_args_list],
+                         ["http://127.0.0.1:43123/ready", "http://127.0.0.1:43123/live"])
+
     def test_docker_error_does_not_disclose_captured_output(self):
         error = subprocess.CalledProcessError(1, ["docker"], stderr="password=SECRET")
         with patch("factory_cli.runtime.docker", side_effect=error):

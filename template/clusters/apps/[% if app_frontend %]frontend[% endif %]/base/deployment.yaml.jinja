@@ -63,7 +63,11 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
+[% if config.get("health_path") %]
+            httpGet: { path: [< config.health_path | tojson >], port: http }
+[% else %]
             tcpSocket: { port: http }
+[% endif %]
             initialDelaySeconds: 10
             periodSeconds: 15
           resources:
@@ -107,7 +111,7 @@ spec:
             initialDelaySeconds: 3
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: [< config.get("ready_path", "/") | tojson >], port: http }
+            httpGet: { path: [< config.get("health_path", config.get("ready_path", "/")) | tojson >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 15
           resources:

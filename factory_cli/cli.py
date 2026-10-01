@@ -22,7 +22,7 @@ class SpecError(ValueError):
     pass
 
 
-def validate_config(name, config, migration=False):
+def validate_config(name, config, migration=False, single_writer=False, frontend_type="static"):
     if not isinstance(config, dict):
         raise SpecError(f"{name}.config must be a mapping")
     allowed = {"env", "secrets", "db_env", "required_env"}
@@ -65,7 +65,11 @@ def validate_config(name, config, migration=False):
     # can satisfy a required declaration (migration pods only get DATABASE_URL).
     injected = {"DATABASE_URL"} if migration else {"PORT"}
     if name == "backend":
-        injected |= {"DATABASE_URL", "SCHEDULER_ENABLED", "OTEL_EXPORTER_OTLP_ENDPOINT"}
+        injected |= {"DATABASE_URL", "OTEL_EXPORTER_OTLP_ENDPOINT"}
+        if single_writer:
+            injected.add("SCHEDULER_ENABLED")
+    if name == "frontend" and frontend_type == "ssr":
+        injected |= {"HOSTNAME", "NODE_ENV"}
     missing = set(required) - seen - injected
     if missing:
         raise SpecError(f"{name}: required variables without mappings: {sorted(missing)}")
@@ -84,6 +88,9 @@ def read_spec(path):
     spec = yaml.safe_load(path.read_text())
     if not isinstance(spec, dict) or spec.get("version") != 1:
         raise SpecError("spec must be a mapping with version: 1")
+    answers = spec.get("answers", {})
+    if not isinstance(answers, dict):
+        raise SpecError("answers must be a mapping")
     services = spec.get("services")
     if not isinstance(services, dict) or not services:
         raise SpecError("services must contain backend and/or frontend")
@@ -107,7 +114,16 @@ def read_spec(path):
             raise SpecError(f"{name}.context escapes its checkout")
         service["_root"] = root
         service["_build"] = build
-        validate_config(name, service.get("config", {}))
+        config = service.get("config", {})
+        if not isinstance(config, dict):
+            raise SpecError(f"{name}.config must be a mapping")
+        config = dict(config)
+        if name == "backend":
+            config.setdefault("health_path", answers.get("backend_health_path", "/healthz"))
+            config.setdefault("ready_path", answers.get("backend_ready_path", "/readyz"))
+        service["config"] = config
+        validate_config(name, config, single_writer=answers.get("cap_single_writer", False),
+                        frontend_type=answers.get("frontend_type", "static"))
     return spec
 
 

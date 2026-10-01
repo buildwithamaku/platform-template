@@ -41,7 +41,7 @@ class ServiceRender(unittest.TestCase):
                     "db_env": {"DB_USERNAME": "username", "DB_PASSWORD": "password"},
                     "migration": {"command": ["npm"], "args": ["run", "migration:run"],
                                   "secrets": {"MIGRATION_KEY": "MIGRATION_KEY"}}},
-                "frontend": {"port": 3333, "env": {"SERVER_LABEL": "production: #quoted"},
+                "frontend": {"port": 3333, "health_path": "/web-live", "ready_path": "/web-ready", "env": {"SERVER_LABEL": "production: #quoted"},
                              "secrets": {"SESSION_KEY": "SESSION_KEY"}}}
             path = tmp / "answers.yml"
             path.write_text(yaml.safe_dump(answers))
@@ -82,6 +82,9 @@ class ServiceRender(unittest.TestCase):
             self.assertEqual(backend["livenessProbe"]["httpGet"]["path"], "/alive")
             self.assertEqual(env["DB_MIGRATIONS_RUN"]["value"], "false")
             self.assertTrue(env["DB_PASSWORD"]["valueFrom"]["secretKeyRef"]["name"].endswith("-app-rw"))
+            frontend = read("clusters/apps/frontend/base/deployment.yaml")["spec"]["template"]["spec"]["containers"][0]
+            self.assertEqual(frontend["livenessProbe"]["httpGet"]["path"], "/web-live")
+            self.assertEqual(frontend["readinessProbe"]["httpGet"]["path"], "/web-ready")
             migration = read("clusters/apps/backend/base/migration-job.yaml")["spec"]["template"]["spec"]["containers"][0]
             self.assertEqual(migration["command"], ["npm"])
             self.assertEqual(migration["args"], ["run", "migration:run"])
@@ -118,10 +121,13 @@ class ServiceRender(unittest.TestCase):
                             self.assertTrue(cluster["spec"]["backup"]["barmanObjectStore"]["destinationPath"].endswith("/" + env))
             # The off path must remove both the job and its resource reference.
             answers["service_config"]["backend"]["migration"]["enabled"] = False
+            answers["service_config"]["frontend"].pop("health_path")
             path.write_text(yaml.safe_dump(answers))
             output = tmp / "no-migration"
             subprocess.run(["copier", "copy", "--defaults", "--vcs-ref=HEAD", "--data-file", str(path),
                             str(root), str(output)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            frontend = read("clusters/apps/frontend/base/deployment.yaml")["spec"]["template"]["spec"]["containers"][0]
+            self.assertIn("tcpSocket", frontend["livenessProbe"])
             self.assertFalse((output / "clusters/apps/backend/base/migration-job.yaml").exists())
             self.assertNotIn("migration-job.yaml", read("clusters/apps/backend/base/kustomization.yaml")["resources"])
 

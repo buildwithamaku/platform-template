@@ -19,6 +19,19 @@ class SpecTests(unittest.TestCase):
         path.write_text(f"version: 1\nservices:\n  backend:\n    repo: example/api\n    checkout: app\n    context: {context}\n")
         return path
 
+    def test_legacy_probe_answers_are_normalized_for_all_consumers(self):
+        path = self.spec()
+        path.write_text(path.read_text() + "answers:\n  backend_health_path: /api/live\n  backend_ready_path: /api/ready\n")
+        config = read_spec(path)["services"]["backend"]["config"]
+        self.assertEqual(config["health_path"], "/api/live")
+        self.assertEqual(config["ready_path"], "/api/ready")
+
+    def test_optional_injected_variables_require_the_capability(self):
+        with self.assertRaisesRegex(SpecError, "without mappings"):
+            validate_config("backend", {"required_env": ["SCHEDULER_ENABLED"]})
+        validate_config("backend", {"required_env": ["SCHEDULER_ENABLED"]}, single_writer=True)
+        validate_config("frontend", {"required_env": ["HOSTNAME"]}, frontend_type="ssr")
+
     def test_context_cannot_escape_checkout(self):
         with self.assertRaisesRegex(SpecError, "escapes"):
             read_spec(self.spec("../elsewhere"))

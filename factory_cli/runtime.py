@@ -100,6 +100,8 @@ def check_service(name, service, *, env_file=None, migration_env_file=None,
         paths = [config.get("ready_path", "/readyz" if name == "backend" else "/")]
         if name == "backend":
             paths.append(config.get("health_path", "/healthz"))
+        elif "health_path" in config:
+            paths.append(config["health_path"])
         for path in dict.fromkeys(paths):
             if not probe(base + path, deadline):
                 record(stage, "failed", f"No successful HTTP response on port {port}, path {path}; inspect app test configuration.")
