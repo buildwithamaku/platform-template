@@ -3,7 +3,11 @@
 Install from this checkout with `python3 -m pip install -e .`. Start with
 `examples/onboarding.yaml` and supply your own repo identifiers, existing local
 checkouts, and Copier answers. Paths resolve relative to the specification file.
-Separate repositories and multiple contexts in one repository are supported.
+Separate repositories, multiple contexts in one repository, and frontend-only
+applications are supported. A frontend-only bundle omits backend resources,
+backend E2E tooling, and the database unless Metabase is explicitly enabled.
+Onboarding defaults Metabase off; enable it only when wanted. Backend-dependent
+options such as same-origin API routing and scheduler workers require a backend.
 Each service can set `branch` (default `main`); services sharing one repository
 must agree on the delivery branch and use the same checkout.
 
@@ -128,7 +132,7 @@ committed in the platform repository. This is opt-in execution of application
 tests and may write synthetic test data; the suite owns cleanup. The factory
 only runs it after infrastructure and HTTPS checks pass. It has a five-minute
 timeout and receives JSON on stdin with `version`, `environment`, `context`,
-`revision`, `images`, and `urls`. Credentials remain in your runtime environment.
+`revision`, `images`, `urls`, and `requires_database`. Credentials remain in your runtime environment.
 
 The suite must run real application and database assertions, exit zero, and
 write one JSON object to stdout containing the input's `version`, `environment`,
@@ -142,6 +146,9 @@ write one JSON object to stdout containing the input's `version`, `environment`,
 ```
 
 Counts must represent executed, successful assertions, not declared tests.
+When `requires_database` is false (neither backend nor Metabase selected), the
+suite may report the database check as `status: "not_applicable"` with zero
+assertions. That exception is rejected for a platform with database consumers.
 For a payroll app, cover authentication, a synthetic tenant's database
 write/read, and rejection of cross-tenant access. The factory validates the
 report protocol; reviewers must assess the suite's actual test coverage.

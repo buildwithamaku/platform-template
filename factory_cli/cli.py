@@ -152,7 +152,10 @@ def doctor(spec, *, runtime=False, env_files=None, migration_env_files=None, net
                 run_migrations=run_migrations))
             continue
         # Source text cannot prove the final image's user, health, or migrations.
-        for item in ("image-build", "non-root-user", "http-readiness", "configuration", "migration"):
+        items = ["image-build", "non-root-user", "http-readiness", "configuration"]
+        if name == "backend" and service.get("config", {}).get("migration", {}).get("enabled", True):
+            items.append("migration")
+        for item in items:
             checks.append({"check": f"{name}.{item}", "status": "unverified",
                            "detail": "Requires container execution with the application's test configuration."})
     for tool in ("copier", "docker", "tofu", "kubectl", "helm", "gh"):
@@ -219,9 +222,12 @@ def onboard(spec, output, template):
     answers["service_config"] = {name: service.get("config", {}) for name, service in spec["services"].items()}
     answers["app_backend"] = "backend" in spec["services"]
     answers["app_frontend"] = "frontend" in spec["services"]
-    # The backend-off template is not yet gated correctly: don't claim support.
+    # Independent applications should not inherit the reference BI application.
+    answers.setdefault("app_metabase", False)
     if not answers["app_backend"]:
-        raise SpecError("frontend-only onboarding is pending backend-off template support")
+        for capability in ("same_origin_api", "backend_public", "cap_single_writer", "cap_preview_envs", "cap_db_app_role"):
+            if answers.get(capability):
+                raise SpecError(f"{capability} requires a backend service")
     workflows = delivery_workflows(spec, answers)
     for name, service in spec["services"].items():
         if not (service["_build"] / "Dockerfile").is_file():

@@ -120,10 +120,11 @@ def verify(platform, environment, context, urls, acceptance_suite=None):
     acceptance = None
     if acceptance_suite and all(c["status"] == "verified" for c in checks):
         target = {"version": 1, "environment": environment, "context": context,
-                  "revision": revision, "images": images, "urls": urls}
+                  "revision": revision, "images": images, "urls": urls,
+                  "requires_database": answers.get("app_backend", True) or answers.get("app_metabase", True)}
         acceptance = run_acceptance(platform, acceptance_suite, target)
         record("application-database-acceptance", acceptance["passed"],
-               "Application-owned suite must pass nonempty application and database assertions.")
+               "Application-owned suite must pass application and applicable database assertions.")
         # Re-observe after the suite: a concurrent rollout invalidates its result.
         after = verify(platform, environment, context, urls)
         stable = (after["revision"] == revision and after["images"] == images

@@ -25,19 +25,27 @@ def run_acceptance(platform, suite, target):
                      PLATFORM_ENVIRONMENT=target["environment"]))
         report = json.loads(process.stdout)
         checks = report.get("checks", [])
+        def passed(check):
+            count = check.get("assertions")
+            if type(count) is not int:
+                return False
+            if check.get("check") == "database" and not target.get("requires_database", True):
+                if check.get("status") == "not_applicable" and count == 0:
+                    return True
+            return check.get("status") == "passed" and count > 0
+
         valid = (process.returncode == 0 and report.get("version") == 1
                  and report.get("revision") == target["revision"]
                  and report.get("environment") == target["environment"]
                  and report.get("context") == target["context"]
                  and isinstance(checks, list) and len(checks) == 2
                  and {c.get("check") for c in checks} == {"application", "database"}
-                 and all(c.get("status") == "passed" and type(c.get("assertions")) is int
-                         and c["assertions"] > 0 for c in checks))
+                 and all(passed(c) for c in checks))
         if not valid:
             raise ValueError("Acceptance report is incomplete or failing")
         # Whitelist output: test logs, response bodies and arbitrary fields may
         # contain credentials or application data and must not enter evidence.
-        result["checks"] = [{"check": c["check"], "assertions": c["assertions"]} for c in checks]
+        result["checks"] = [{"check": c["check"], "status": c["status"], "assertions": c["assertions"]} for c in checks]
         result["passed"] = True
     except (OSError, subprocess.SubprocessError, ValueError, TypeError, AttributeError):
         result["passed"] = False

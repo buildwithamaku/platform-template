@@ -8,6 +8,7 @@ resources:
   - externalsecret-ghcr.yaml
   - deployment.yaml
   - service.yaml
+  - networkpolicy.yaml
 [% if service_config.get("frontend", {}).get("secrets") %]
   - app-config-externalsecret.yaml
 [% endif %]

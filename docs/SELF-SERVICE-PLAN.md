@@ -47,8 +47,8 @@ Still requiring implementation or live evidence:
 - Live validation of the implemented bootstrap, verification, app/database
   acceptance protocol, and promotion PR flow. Local tests exercise protocol
   failures and Git branch preparation; they do not establish a real deployment.
-- Frontend-only onboarding and reliable regeneration of CLI-created environment
-  roots when updating the underlying template.
+- Reliable regeneration of CLI-created environment roots when updating the
+  underlying template.
 - Existing single-worker Recreate deployment is not an exactly-once guarantee
   during failures. Applications need idempotency or fencing for critical jobs.
 - BYO install validation is structural only. Live SSH, node networking, local

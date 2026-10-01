@@ -10,7 +10,7 @@ from factory_cli.acceptance import run_acceptance
 
 
 class AcceptanceTests(unittest.TestCase):
-    def run_suite(self, mutation="", exit_code=0):
+    def run_suite(self, mutation="", exit_code=0, requires_database=True):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
             script = root / "acceptance.py"
@@ -31,7 +31,8 @@ report = dict(target, checks=[
 
             with patch("factory_cli.acceptance.subprocess.run", side_effect=run):
                 return run_acceptance(root, "acceptance.py", {
-                    "version": 1, "environment": "staging", "context": "test", "revision": "abc"})
+                    "version": 1, "environment": "staging", "context": "test", "revision": "abc",
+                    "requires_database": requires_database})
 
     def test_real_process_protocol_and_redacted_evidence(self):
         result = self.run_suite()
@@ -48,3 +49,10 @@ report = dict(target, checks=[
 
     def test_malformed_check_does_not_crash_or_pass(self):
         self.assertFalse(self.run_suite('report["checks"] = [None, None]')["passed"])
+
+    def test_database_can_only_be_inapplicable_when_platform_has_none(self):
+        mutation = 'report["checks"][1].update(status="not_applicable", assertions=0)'
+        self.assertFalse(self.run_suite(mutation)["passed"])
+        result = self.run_suite(mutation, requires_database=False)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["checks"][1]["status"], "not_applicable")
