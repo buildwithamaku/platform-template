@@ -1,3 +1,4 @@
+[% set config = service_config.get("frontend", {}) %]
 # Reference frontend Deployment (app_frontend). Serving mode = frontend_type:
 #   static — built assets behind unprivileged nginx (Vite/CRA/Angular/Vue, or
 #            Next `output: export`). No Node runtime; nginx listens on :8080.
@@ -40,18 +41,25 @@ spec:
         - name: frontend
           image: ghcr.io/[< registry_org >]/[< client_name >]-frontend
           ports:
-            - { containerPort: 3000, name: http }
+            - { containerPort: [< config.get("port", 3000) >], name: http }
           env:
             - name: PORT
-              value: "3000"
+              value: [< config.get("port", 3000) | string | tojson >]
             - name: HOSTNAME # Next standalone binds 0.0.0.0 only when this is set
               value: "0.0.0.0"
             - name: NODE_ENV
               value: production
-            - name: NEXT_PUBLIC_API_URL # server-side only (browser uses the build-time value)
-              value: https://api.[< domain >]
+[% for name, value in config.get("env", {}).items() %]
+            - name: [< name | tojson >]
+              value: [< value | tojson >]
+[% endfor %]
+[% if config.get("secrets") %]
+          envFrom:
+            - secretRef:
+                name: frontend-config
+[% endif %]
           readinessProbe:
-            httpGet: { path: /, port: http }
+            httpGet: { path: [< config.get("ready_path", "/") | tojson >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
@@ -81,13 +89,25 @@ spec:
         - name: frontend
           image: ghcr.io/[< registry_org >]/[< client_name >]-frontend
           ports:
-            - { containerPort: 8080, name: http }
+            - { containerPort: [< config.get("port", 8080) >], name: http }
+          env:
+            - name: PORT
+              value: [< config.get("port", 8080) | string | tojson >]
+[% for name, value in config.get("env", {}).items() %]
+            - name: [< name | tojson >]
+              value: [< value | tojson >]
+[% endfor %]
+[% if config.get("secrets") %]
+          envFrom:
+            - secretRef:
+                name: frontend-config
+[% endif %]
           readinessProbe:
-            httpGet: { path: /, port: http }
+            httpGet: { path: [< config.get("ready_path", "/") | tojson >], port: http }
             initialDelaySeconds: 3
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: /, port: http }
+            httpGet: { path: [< config.get("ready_path", "/") | tojson >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 15
           resources:

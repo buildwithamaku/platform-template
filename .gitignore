@@ -25,6 +25,10 @@ tofu/**/.gen/
 
 # OS
 .DS_Store
+__pycache__/
+*.pyc
+*.egg-info/
+.venv/
 e2e/node_modules/
 
 # node_modules anywhere (post copier-ize move)

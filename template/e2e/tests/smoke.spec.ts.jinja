@@ -1,0 +1,30 @@
+[% if "backend" in service_config %]
+import { test, expect } from '@playwright/test';
+
+// Generic service probe only. Add app-owned acceptance tests for database and
+// business behavior; an HTTP success response alone cannot prove either.
+test('declared ready_path returns success @smoke', async ({ request }) => {
+  const res = await request.get([< service_config.backend.get("ready_path", "/readyz") | tojson >], { maxRedirects: 0 });
+  expect(res.status()).toBeGreaterThanOrEqual(200);
+  expect(res.status()).toBeLessThan(300);
+});
+[% else %]
+import { test, expect } from '@playwright/test';
+
+// @smoke — the critical path. This exact subset runs as a prod PostSync hook
+// (`playwright test --grep @smoke`): if it fails, the prod sync is marked failed after the new version
+// is already live. Recovery requires a separate rollback. Keep it minimal, fast, and dependency-light.
+
+test('readyz returns 200 @smoke', async ({ request }) => {
+  const res = await request.get('/readyz');
+  expect(res.status()).toBe(200);
+});
+
+test('GET /api/widgets returns a valid widgets payload @smoke', async ({ request }) => {
+  const res = await request.get('/api/widgets');
+  expect(res.status()).toBe(200);
+  const body = await res.json();
+  expect(body).toHaveProperty('widgets');
+  expect(typeof body.widgets).toBe('number');
+});
+[% endif %]

@@ -1,3 +1,4 @@
+[% set migration = service_config.get("backend", {}).get("migration", {}) %]
 # PreSync migration hook (§5.4 / §6.2): ArgoCD runs `app migrate` BEFORE rolling
 # the Deployment. If it fails, the sync fails and the Deployment is never updated
 # — the old version keeps serving. Same image/tag as the Deployment (Kustomize
@@ -27,13 +28,32 @@ spec:
       containers:
         - name: migrate
           image: ghcr.io/[< registry_org >]/[< client_name >]-backend
-          args: ["migrate"]
+[% if migration.get("command") %]
+          command: [< migration.command | tojson >]
+[% endif %]
+          args: [< migration.get("args", ["migrate"]) | tojson >]
           env:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
                   name: [< client_name >]-db-app
                   key: uri
+[% for name, value in migration.get("env", {}).items() %]
+            - name: [< name | tojson >]
+              value: [< value | tojson >]
+[% endfor %]
+[% for name, key in migration.get("db_env", {}).items() %]
+            - name: [< name | tojson >]
+              valueFrom:
+                secretKeyRef:
+                  name: [< client_name >]-db-app
+                  key: [< key | tojson >]
+[% endfor %]
+[% if migration.get("secrets") %]
+          envFrom:
+            - secretRef:
+                name: backend-migration-config
+[% endif %]
           resources:
             requests: { cpu: 25m, memory: 48Mi }
             limits: { memory: 128Mi }

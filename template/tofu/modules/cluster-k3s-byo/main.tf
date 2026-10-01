@@ -15,6 +15,15 @@ locals {
     server_ip   = var.control_plane_ip
     tls_sans    = distinct(concat([var.control_plane_ip], var.api_tls_sans))
   })
+  agent_scripts = [for ip in var.agent_ips : templatefile("${path.module}/templates/k3s-install-byo.sh.tftpl", {
+    is_server   = false
+    k3s_token   = random_password.k3s_token.result
+    k3s_version = var.k3s_version
+    node_ip     = ip
+    server_ip   = var.control_plane_ip
+    tls_sans    = []
+  })]
+
 }
 
 # ── control plane: install k3s server over SSH ───────────────────────────────
@@ -31,13 +40,17 @@ resource "null_resource" "control_plane" {
     private_key = file(var.ssh_private_key_path)
   }
 
+  provisioner "remote-exec" {
+    inline = ["umask 077; mkdir -p /root/.factory-k3s; chmod 700 /root/.factory-k3s"]
+  }
+
   provisioner "file" {
     content     = local.server_script
-    destination = "/tmp/k3s-install.sh"
+    destination = "/root/.factory-k3s/install.sh"
   }
 
   provisioner "remote-exec" {
-    inline = ["chmod +x /tmp/k3s-install.sh", "/tmp/k3s-install.sh"]
+    inline = ["chmod 600 /root/.factory-k3s/install.sh; trap 'rm -f /root/.factory-k3s/install.sh' EXIT; bash /root/.factory-k3s/install.sh"]
   }
 }
 
@@ -48,6 +61,7 @@ resource "null_resource" "agents" {
   triggers = {
     ip     = var.agent_ips[count.index]
     server = var.control_plane_ip
+    script = sha1(local.agent_scripts[count.index])
   }
 
   depends_on = [null_resource.control_plane]
@@ -59,19 +73,16 @@ resource "null_resource" "agents" {
     private_key = file(var.ssh_private_key_path)
   }
 
+  provisioner "remote-exec" {
+    inline = ["umask 077; mkdir -p /root/.factory-k3s; chmod 700 /root/.factory-k3s"]
+  }
+
   provisioner "file" {
-    content = templatefile("${path.module}/templates/k3s-install-byo.sh.tftpl", {
-      is_server   = false
-      k3s_token   = random_password.k3s_token.result
-      k3s_version = var.k3s_version
-      node_ip     = var.agent_ips[count.index]
-      server_ip   = var.control_plane_ip
-      tls_sans    = []
-    })
-    destination = "/tmp/k3s-install.sh"
+    content     = local.agent_scripts[count.index]
+    destination = "/root/.factory-k3s/install.sh"
   }
 
   provisioner "remote-exec" {
-    inline = ["chmod +x /tmp/k3s-install.sh", "/tmp/k3s-install.sh"]
+    inline = ["chmod 600 /root/.factory-k3s/install.sh; trap 'rm -f /root/.factory-k3s/install.sh' EXIT; bash /root/.factory-k3s/install.sh"]
   }
 }

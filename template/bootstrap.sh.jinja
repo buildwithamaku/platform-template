@@ -5,7 +5,7 @@
 # converges. After it completes, no human touches the cluster — ArgoCD reconciles
 # clusters/platform/ from Git in sync-wave order.
 #
-# Required tools: kubectl, helm (both talk to the CURRENT kube-context).
+# Required tools: kubectl, helm. FACTORY_KUBE_CONTEXT pins both clients when set.
 # Secrets are supplied at runtime via env vars and NEVER committed.
 set -euo pipefail
 
@@ -15,6 +15,11 @@ PLATFORM_REPO_URL="${PLATFORM_REPO_URL:-https://github.com/[< registry_org >]/[<
 PLATFORM_REPO_REVISION="${PLATFORM_REPO_REVISION:-main}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ESO_NAMESPACE="${ESO_NAMESPACE:-external-secrets}"
+PLATFORM_ENVIRONMENT="${PLATFORM_ENVIRONMENT:-staging}"
+case "$PLATFORM_ENVIRONMENT" in
+  staging|prod) ;;
+  *) echo "FATAL: PLATFORM_ENVIRONMENT must be staging or prod" >&2; exit 1 ;;
+esac
 
 # ---- secrets (runtime only, never committed) ------------------------------
 GIT_TOKEN="${GIT_TOKEN:-}"                          # read token for the (private) platform repo
@@ -25,7 +30,13 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 need() { command -v "$1" >/dev/null 2>&1 || { echo "FATAL: missing required tool: $1" >&2; exit 1; }; }
 need kubectl; need helm
 
-echo "==> context: $(kubectl config current-context)"
+if [[ -n "${FACTORY_KUBE_CONTEXT:-}" ]]; then
+  kubectl() { command kubectl --context "$FACTORY_KUBE_CONTEXT" "$@"; }
+  helm() { command helm --kube-context "$FACTORY_KUBE_CONTEXT" "$@"; }
+  echo "==> context: $FACTORY_KUBE_CONTEXT"
+else
+  echo "==> context: $(kubectl config current-context)"
+fi
 
 echo "==> [1/4] ArgoCD (chart ${ARGOCD_CHART_VERSION})"
 helm repo add argo https://argoproj.github.io/argo-helm >/dev/null 2>&1 || true
@@ -71,6 +82,7 @@ fi
 echo "==> [4/4] root app-of-apps -> ${PLATFORM_REPO_URL}@${PLATFORM_REPO_REVISION}"
 sed -e "s|__REPO_URL__|${PLATFORM_REPO_URL}|g" \
     -e "s|__REVISION__|${PLATFORM_REPO_REVISION}|g" \
+    -e "s|__ENVIRONMENT__|${PLATFORM_ENVIRONMENT}|g" \
     "${here}/clusters/bootstrap/app-of-apps.yaml" \
   | kubectl apply -n "$ARGOCD_NAMESPACE" -f -
 

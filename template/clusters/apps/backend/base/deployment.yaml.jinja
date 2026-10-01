@@ -1,3 +1,4 @@
+[% set config = service_config.get("backend", {}) %]
 # Reference backend Deployment. Consumes DATABASE_URL — the §5.4 contract,
 # source-swappable. The reloader annotation rolls it when that secret rotates.
 # Image TAG is set by the overlay (bumped by CI); base leaves it bare.
@@ -38,10 +39,10 @@ spec:
         - name: backend
           image: ghcr.io/[< registry_org >]/[< client_name >]-backend
           ports:
-            - { containerPort: 8080, name: http }
+            - { containerPort: [< config.get("port", 8080) >], name: http }
           env:
             - name: PORT
-              value: "8080"
+              value: [< config.get("port", 8080) | string | tojson >]
 [% if cap_single_writer %]
             - name: SCHEDULER_ENABLED # web pods NEVER run the scheduler — the
               value: "false"          # single worker Deployment does (cap_single_writer)
@@ -53,12 +54,28 @@ spec:
                   key: uri
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector-opentelemetry-collector.monitoring:4318
+[% for name, value in config.get("env", {}).items() %]
+            - name: [< name | tojson >]
+              value: [< value | tojson >]
+[% endfor %]
+[% for name, key in config.get("db_env", {}).items() %]
+            - name: [< name | tojson >]
+              valueFrom:
+                secretKeyRef:
+                  name: [% if cap_db_app_role %][< client_name >]-db-app-rw[% else %][< client_name >]-db-app[% endif %]
+                  key: [< key | tojson >]
+[% endfor %]
+[% if config.get("secrets") %]
+          envFrom:
+            - secretRef:
+                name: backend-config
+[% endif %]
           readinessProbe:
-            httpGet: { path: [< backend_ready_path >], port: http }
+            httpGet: { path: [< config.get("ready_path", backend_ready_path) | tojson >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: [< backend_health_path >], port: http }
+            httpGet: { path: [< config.get("health_path", backend_health_path) | tojson >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 15
           resources:

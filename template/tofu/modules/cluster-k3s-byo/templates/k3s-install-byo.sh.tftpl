@@ -6,15 +6,22 @@
 # IP, and uses NO external cloud-controller (no CCM). PVCs bind k3s's built-in
 # local-path StorageClass.
 set -euo pipefail
+umask 077
+if [ "$(id -u)" -ne 0 ]; then
+  echo "Factory BYO installation requires a root SSH account" >&2
+  exit 1
+fi
 
 command -v curl >/dev/null 2>&1 || { apt-get update && apt-get install -y curl; }
 
 mkdir -p /etc/rancher/k3s
+touch /etc/rancher/k3s/config.yaml
+chmod 600 /etc/rancher/k3s/config.yaml
 %{ if is_server ~}
 cat > /etc/rancher/k3s/config.yaml <<EOF
 token: "${k3s_token}"
 node-ip: "${node_ip}"
-write-kubeconfig-mode: "0644"
+write-kubeconfig-mode: "0600"
 tls-san:
 %{ for san in tls_sans ~}
   - "${san}"
@@ -32,7 +39,12 @@ node-ip: "${node_ip}"
 server: "https://${server_ip}:6443"
 EOF
 # Wait for the control-plane API to accept connections before joining.
+deadline=$((SECONDS + 300))
 until timeout 2 bash -c "echo > /dev/tcp/${server_ip}/6443" 2>/dev/null; do
+  if [ "$SECONDS" -ge "$deadline" ]; then
+    echo "Control-plane API did not become reachable within 300 seconds" >&2
+    exit 1
+  fi
   sleep 4
 done
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="${k3s_version}" sh -s - agent

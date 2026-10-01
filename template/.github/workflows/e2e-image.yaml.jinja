@@ -18,7 +18,7 @@ jobs:
       contents: read
       packages: write
     outputs:
-      tag: ${{ steps.tag.outputs.tag }}
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@v4
       - id: tag
@@ -28,7 +28,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
+      - id: build
+        uses: docker/build-push-action@v6
         with:
           context: ./e2e
           push: true
@@ -46,19 +47,22 @@ jobs:
           curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" \
             | bash -s 5.4.3
           sudo mv kustomize /usr/local/bin/
-      - name: Bump e2e image tag in the staging overlay (rebase-retry, no-op safe)
+      - name: Bump e2e image digest in the staging overlay (rebase-retry, no-op safe)
+        env:
+          DIGEST: ${{ needs.build.outputs.digest }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "::error::missing image digest"; exit 1; }
           img=ghcr.io/[< registry_org >]/[< client_name >]-e2e
           for attempt in 1 2 3 4 5; do
             git fetch -q origin main && git reset -q --hard origin/main
             ( cd clusters/apps/backend/overlays/staging \
-              && kustomize edit set image "$img=$img:${{ needs.build.outputs.tag }}" )
+              && kustomize edit set image "$img=$img@${DIGEST}" )
             if git diff --quiet; then
-              echo "staging already at ${{ needs.build.outputs.tag }} — nothing to bump"; exit 0
+              echo "staging already at ${DIGEST} — nothing to bump"; exit 0
             fi
-            git commit -qam "chore(e2e): staging image -> ${{ needs.build.outputs.tag }}"
+            git commit -qam "chore(e2e): staging image -> ${DIGEST}"
             if git push; then exit 0; fi
             echo "push rejected (attempt $attempt) — re-syncing and retrying"; sleep $((attempt * 3))
           done

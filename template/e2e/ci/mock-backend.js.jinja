@@ -1,3 +1,13 @@
+[% if "backend" in service_config %]
+// Fixture for checking the generated probe suite, never live app evidence.
+const http = require('http');
+const paths = new Set([< [service_config.backend.get("health_path", "/healthz"), service_config.backend.get("ready_path", "/readyz")] | tojson >]);
+http.createServer((req, res) => {
+  const path = req.url.split('?')[0];
+  res.writeHead(paths.has(path) ? (process.env.BROKEN === '1' ? 503 : 200) : 404);
+  res.end('probe fixture');
+}).listen(process.env.PORT || 8080);
+[% else %]
 // Minimal stand-in for the backend's HTTP contract (§5.4), used by the e2e.yaml
 // PR gate (and handy for local dev). Set BROKEN=1 to simulate a bad deploy so the
 // @smoke pack is proven to FAIL — the whole point of the smoke gate.
@@ -21,3 +31,4 @@ http
     res.end('not found');
   })
   .listen(port, () => console.log(`mock backend on :${port} (broken=${broken})`));
+[% endif %]
