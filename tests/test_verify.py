@@ -42,13 +42,18 @@ class EvidenceTests(unittest.TestCase):
         deployment["spec"]["replicas"] = 0
         self.assertFalse(deployment_ready(deployment))
 
-    def test_failed_hook_and_stale_success_block_verification(self):
+    def test_failed_or_pending_operation_blocks_verification(self):
         app = self.application()
         self.assertTrue(reconciled(app, "abc"))
         app["status"]["operationState"]["phase"] = "Failed"
         self.assertFalse(reconciled(app, "abc"))
         app["status"]["operationState"]["phase"] = "Succeeded"
         app["status"]["operationState"]["syncResult"]["revision"] = "old"
+        self.assertTrue(reconciled(app, "abc"))  # unchanged apps need no new sync
+        app["operation"] = {"sync": {"revision": "abc"}}
+        self.assertFalse(reconciled(app, "abc"))
+        app.pop("operation")
+        app["status"]["sync"]["revision"] = "old"
         self.assertFalse(reconciled(app, "abc"))
 
     def test_health_evidence_does_not_claim_database_acceptance(self):

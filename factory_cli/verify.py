@@ -1,9 +1,12 @@
 """Read-only deployment evidence. Health alone never certifies app acceptance."""
 from datetime import datetime, timezone
+import io
 import json
 from pathlib import Path
 import re
 import subprocess
+import tarfile
+import tempfile
 import urllib.request
 from urllib.parse import urlsplit
 
@@ -26,8 +29,38 @@ def reconciled(document, revision=None):
     return (sync.get("status") == "Synced"
             and status.get("health", {}).get("status") == "Healthy"
             and status.get("operationState", {}).get("phase") == "Succeeded"
-            and (revision is None or (sync.get("revision") == revision
-                 and status.get("operationState", {}).get("syncResult", {}).get("revision") == revision)))
+            and not document.get("operation")
+            and (revision is None or sync.get("revision") == revision))
+
+
+def same_application_at_revision(platform, path, revision, rendered):
+    """Prove an older successful sync used the same rendered app configuration."""
+    if Path(path).is_absolute() or ".." in Path(path).parts:
+        return False
+    if not isinstance(revision, str) or not re.fullmatch(r"[a-f0-9]{40}|[a-f0-9]{64}", revision):
+        return False
+    try:
+        archive = subprocess.run(["git", "archive", revision, "--", "clusters"], cwd=platform,
+                                 check=True, capture_output=True, timeout=60).stdout
+        with tempfile.TemporaryDirectory(prefix="factory-sync-evidence-") as temp:
+            root = Path(temp).resolve()
+            with tarfile.open(fileobj=io.BytesIO(archive)) as members:
+                for member in members:
+                    target = (root / member.name).resolve()
+                    if not target.is_relative_to(root) or not (member.isfile() or member.isdir()):
+                        return False
+                    if member.isdir():
+                        target.mkdir(parents=True, exist_ok=True)
+                    else:
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_bytes(members.extractfile(member).read())
+            previous = subprocess.run(["kustomize", "build", str(root / path)],
+                                      check=True, capture_output=True, text=True, timeout=60).stdout
+        def canonical(value):
+            return sorted(json.dumps(d, sort_keys=True) for d in yaml.safe_load_all(value) if d)
+        return canonical(previous) == canonical(rendered)
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError, tarfile.TarError, yaml.YAMLError):
+        return False
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -72,8 +105,10 @@ def verify(platform, environment, context, urls, acceptance_suite=None):
         "repoURL": repo, "path": f"clusters/environments/{environment}", "targetRevision": "main"}}})
     for app in desired:
         name, source = app["metadata"]["name"], app["spec"]["source"]
+        app_state = None
         try:
             live = kube("applications.argoproj.io", name, "argocd")
+            app_state = live
             actual = live["spec"]["source"]
             source_matches = all(actual.get(k) == source.get(k) for k in ("repoURL", "path", "chart", "targetRevision"))
             record(f"argocd.{name}", source_matches and reconciled(live, revision if "path" in source else None),
@@ -85,7 +120,12 @@ def verify(platform, environment, context, urls, acceptance_suite=None):
         path = (platform / source["path"]).resolve()
         if not path.is_relative_to(platform):
             raise ValueError("Application source escapes platform checkout")
-        resources = yaml.safe_load_all(read("kustomize", "build", str(path)))
+        rendered = read("kustomize", "build", str(path))
+        synced_revision = (app_state or {}).get("status", {}).get("operationState", {}).get("syncResult", {}).get("revision")
+        equivalent = synced_revision == revision or same_application_at_revision(platform, source["path"], synced_revision, rendered)
+        record(f"sync-contract.{name}", equivalent,
+               "Last successful application sync must match this revision or render identical manifests, including hooks.")
+        resources = yaml.safe_load_all(rendered)
         for resource in resources:
             if not resource:
                 continue

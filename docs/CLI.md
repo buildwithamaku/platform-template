@@ -115,7 +115,11 @@ factory verify --platform /path/to/bundle/platform \
 Use a clean committed platform checkout at the revision you intend to verify.
 The report records that revision, context, timestamp, and expected image digests.
 It checks each generated Argo Application's source, health, sync and operation
-status; Git Applications must have successfully synced the checked-out revision.
+status; Git Applications must report the checked-out revision as Synced. Because Argo
+does not run a new sync for an unchanged application, an older successful app
+sync is accepted only when its archived Git revision renders identical app
+manifests, including hooks. Missing history or changed manifests fails this
+check; fetch the relevant commit or sync the changed application before retrying.
 Application deployments must have all replicas updated and ready with matching
 images pinned by digest. HTTPS checks use normal certificate validation and do
 not follow redirects. Only generated application ingress hosts are accepted.
