@@ -80,10 +80,11 @@ jobs:
           done
 
       - name: Install kubeconform + kustomize (pinned)
+        shell: bash
         run: |
-          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
+          curl --retry 3 -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
           sudo install kubeconform /usr/local/bin/
-          curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.3
+          curl --retry 3 -sSfL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" | tar -xz kustomize
           sudo mv kustomize /usr/local/bin/
 
       - name: Factory CLI and generated environment integration tests

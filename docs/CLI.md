@@ -90,8 +90,31 @@ See [release acceptance](SELF-SERVICE-PLAN.md) for the full outstanding scope.
 
 ## Bootstrap a published platform
 
-Publish `platform/` as its own Git repository and the generated caller workflows
-in the app repositories. Provision the selected infrastructure using the
+Publish `platform/` as its own Git repository. The repository name must match
+`answers.registry_org/answers.platform_repo`; the generated workflows and Argo
+sources already reference that location. From the fresh generated directory:
+
+```bash
+cd /path/to/bundle/platform
+git init --initial-branch=main
+git add .
+git commit -m "Initialize generated deployment platform"
+gh repo create YOUR_ORG/YOUR_PLATFORM_REPO --private --source=. --remote=origin --push
+```
+
+Run this before adding local credentials or infrastructure state. Use the
+generated `platform/` directory, not the enclosing bundle or factory checkout.
+The explicit `main` branch is required by the generated GitOps sources. If the
+remote repository already exists, connect its origin and push through your
+normal repository review process instead of creating another repository.
+
+Use `factory connect --spec /path/to/onboarding.yaml --bundle /path/to/bundle
+--publish` to prepare the caller workflow PRs in the app repositories (see
+[connection details](#connect-application-repositories)). For private platform
+repositories, enable reusable-workflow access for the caller repositories in
+GitHub before merging those PRs.
+
+Provision the selected infrastructure using the
 rendered OpenTofu configuration. Before bootstrap, make the platform's local
 HEAD match published `origin/main`, populate the remote secrets checklist, and
 build/publish the app and E2E images. Bootstrap does not perform those steps.

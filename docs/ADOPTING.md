@@ -19,6 +19,13 @@ platform-template (this factory) ──copier render──▶  <you>/<client>-pl
 ---
 
 ## 1. Render your platform repo
+For an existing containerized application, start with the
+[Factory CLI workflow](CLI.md): `factory doctor`, then `factory onboard`. It
+generates the platform, app delivery workflows, a secrets checklist and separate
+staging/production roots from one specification. Follow its publication,
+connection and bootstrap steps together; the direct Copier path below is the
+manual alternative and does not generate the CLI's environment roots.
+
 Install copier and render an instance, answering the questionnaire (this is where it becomes
 *yours* — `client_name`, `domain`, `registry_org` = **your** GitHub org, `cloud`, capabilities):
 
@@ -31,7 +38,7 @@ copier copy --trust gh:buildwithamaku/platform-template <client>-platform
 `--trust` is required because the template runs copier tasks. Then push it to **your** org:
 
 ```bash
-cd <client>-platform && git init && git add -A && git commit -m "init from platform-template"
+cd <client>-platform && git init --initial-branch=main && git add -A && git commit -m "init from platform-template"
 gh repo create <your-org>/<client>-platform --private --source=. --push
 ```
 

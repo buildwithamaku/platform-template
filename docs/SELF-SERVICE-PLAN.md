@@ -71,6 +71,7 @@ This does not replace the required InterServer acceptance run.
   subdomain, platform GitHub repo/registry and Infisical identity. Use synthetic
   application data. Capture revisions, image digests, checks and teardown results.
 
-Live acceptance inputs still needed: independent app repo(s), disposable node
-address and SSH identity, test domain, and credentials through their normal
-secret stores. Never place credential values in this document.
+The independent payroll repositories have been identified and tested locally.
+Live acceptance inputs still needed: disposable node address and SSH identity,
+test domain, and credentials through their normal secret stores. Never place
+credential values in this document.
