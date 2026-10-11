@@ -88,10 +88,13 @@ kubectl -n argocd get applications -w   # watch it reconcile in sync-wave order
 
 ### 1.5 Verify (acceptance)
 - `kubectl -n argocd get applications` → all Synced/Healthy.
-- DNS + TLS work: **staging** serves at `<sub>.staging.[< domain >]` with an *untrusted*
-  Let's Encrypt **staging** cert (deliberate — dodges LE rate limits; the browser warning is
-  expected). The trusted **green lock** is the **prod** milestone (`letsencrypt-prod` at
-  `<sub>.[< domain >]`). Either way external-dns created the record + cert-manager issued.
+- DNS + TLS work: staging serves at `<sub>.staging.[< domain >]` using
+  `[< staging_tls_issuer >]`. `letsencrypt-prod` issues publicly trusted certificates;
+  `letsencrypt-staging` issues test certificates that browsers and `factory verify`
+  reject. CLI onboarding defaults to trusted certificates for acceptance. Direct
+  Copier generation defaults to test certificates for issuance experiments; set
+  `staging_tls_issuer: letsencrypt-prod` before HTTPS release acceptance.
+  Production uses `letsencrypt-prod` at `<sub>.[< domain >]`.
 - Grafana/ArgoCD/Redis Insight resolve **only over the tailnet**.
 [% if app_metabase %]- Metabase queries prod data read-only; a write is rejected.
 [% endif %]- A broken deploy is flagged by the prod smoke gate within minutes (§6).

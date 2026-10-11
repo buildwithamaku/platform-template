@@ -88,7 +88,7 @@ def generate_environments(platform, answers):
                                     for tls in updated.get("tls", []):
                                         tls["hosts"] = [host]
                                     ops.append({"op": "add", "path": "/metadata/annotations/cert-manager.io~1cluster-issuer",
-                                                "value": "letsencrypt-" + env})
+                                                "value": answers.get("staging_tls_issuer", "letsencrypt-staging") if env == "staging" else "letsencrypt-prod"})
                                 if updated != resource["spec"]:
                                     ops.append({"op": "replace", "path": "/spec", "value": updated})
                             if ops:

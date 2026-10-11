@@ -50,6 +50,9 @@ class ServiceRender(unittest.TestCase):
                             str(root), str(output)], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             def read(relative):
                 return yaml.safe_load((output / relative).read_text())
+            for service in ("frontend", "backend", "metabase"):
+                ingress = read(f"clusters/apps/{service}/overlays/staging/ingress.yaml")
+                self.assertEqual(ingress["metadata"]["annotations"]["cert-manager.io/cluster-issuer"], "letsencrypt-staging")
             probes = (output / "e2e/tests/smoke.spec.ts").read_text()
             self.assertIn('request.get("/ready"', probes)
             self.assertNotIn("/api/widgets", probes)

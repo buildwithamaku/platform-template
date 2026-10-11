@@ -236,6 +236,7 @@ def onboard(spec, output, template):
     answers["app_frontend"] = "frontend" in spec["services"]
     # Independent applications should not inherit the reference BI application.
     answers.setdefault("app_metabase", False)
+    answers.setdefault("staging_tls_issuer", "letsencrypt-prod")
     if not answers["app_backend"]:
         for capability in ("same_origin_api", "backend_public", "cap_single_writer", "cap_preview_envs", "cap_db_app_role"):
             if answers.get(capability):

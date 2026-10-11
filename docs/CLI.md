@@ -39,7 +39,13 @@ Generation neither provisions infrastructure nor modifies app repositories.
 Generated bundles contain separate staging and production Application roots.
 Set `PLATFORM_ENVIRONMENT=staging` or `prod` when bootstrapping the respective
 cluster. Secret-store environments, backup prefixes, DNS ownership, and tailnet
-names are separated. Live acceptance is still outstanding: do not deploy a
+names are separated. CLI onboarding defaults `answers.staging_tls_issuer` to
+`letsencrypt-prod`, so staging hosts receive publicly trusted certificates and can
+pass the verifier's normal TLS validation. This chooses the certificate authority,
+not the application deployment environment. Set it explicitly to
+`letsencrypt-staging` for issuance experiments; those test certificates cannot
+pass HTTPS acceptance or promotion. Direct Copier generation retains the test
+issuer default. Live acceptance is still outstanding: do not deploy a
 bundle merely because generation succeeds.
 
 Delivery defaults to `language: container`: the Dockerfile determines the

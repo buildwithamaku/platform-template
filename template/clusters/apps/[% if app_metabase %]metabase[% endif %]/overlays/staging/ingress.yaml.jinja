@@ -6,7 +6,7 @@ metadata:
   name: metabase
   namespace: metabase
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: [< staging_tls_issuer >]
 spec:
   ingressClassName: nginx
   tls:

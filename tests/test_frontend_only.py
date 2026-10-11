@@ -43,6 +43,7 @@ class FrontendOnlyTests(unittest.TestCase):
             saved = yaml.safe_load((platform / ".copier-answers.yml").read_text())
             self.assertFalse(saved["app_backend"])
             self.assertTrue(saved["app_frontend"])
+            self.assertEqual(saved["staging_tls_issuer"], "letsencrypt-prod")
             workflow = yaml.safe_load((bundle / "connections/example/web/deliver.yml").read_text())
             self.assertEqual(set(workflow["jobs"]), {"frontend"})
             readiness = json.loads((bundle / "readiness.json").read_text())
@@ -60,6 +61,9 @@ class FrontendOnlyTests(unittest.TestCase):
                                            capture_output=True, text=True, check=True)
                     resources = [d for d in yaml.safe_load_all(built.stdout) if d]
                     self.assertFalse(any(d.get("metadata", {}).get("namespace") == "data" for d in resources))
+                    if application["metadata"]["name"] in {"frontend", "demo"}:
+                        ingress = next(d for d in resources if d.get("kind") == "Ingress")
+                        self.assertEqual(ingress["metadata"]["annotations"]["cert-manager.io/cluster-issuer"], "letsencrypt-prod")
                     if application["metadata"]["name"] == "gatus":
                         configmap = next(d for d in yaml.safe_load_all(built.stdout) if d and d.get("kind") == "ConfigMap")
                         config = yaml.safe_load(configmap["data"]["config.yaml"])

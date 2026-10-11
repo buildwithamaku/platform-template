@@ -79,6 +79,14 @@ acme_email:
   type: str
   help: Email for the Let's Encrypt ACME account (per client — it's an identity, not a label)
 
+staging_tls_issuer:
+  type: str
+  help: Certificate issuer for staging hosts (test certificates cannot pass factory verify)
+  default: letsencrypt-staging
+  choices:
+    - letsencrypt-staging
+    - letsencrypt-prod
+
 # ── Cloud / infra ───────────────────────────────────────────────────────────
 cloud:
   type: str
