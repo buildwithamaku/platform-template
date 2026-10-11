@@ -16,12 +16,22 @@ data:
     storage:
       type: memory
     endpoints:
+[% if app_backend %]
       - name: "backend (internal)"
         group: "internal"
-        url: "http://backend.data.svc/readyz"
+        url: [< ("http://backend.data.svc" + service_config.get("backend", {}).get("ready_path", backend_ready_path)) | tojson >]
         interval: 30s
         conditions:
           - "[STATUS] == 200"
+[% endif %]
+[% if app_frontend %]
+      - name: "frontend (internal)"
+        group: "internal"
+        url: [< ("http://frontend.frontend.svc" + service_config.get("frontend", {}).get("ready_path", "/")) | tojson >]
+        interval: 30s
+        conditions:
+          - "[STATUS] == 200"
+[% endif %]
       - name: "Cloudflare 1.1.1.1"
         group: "external"
         url: "https://1.1.1.1"

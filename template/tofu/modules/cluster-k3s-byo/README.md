@@ -8,7 +8,12 @@ returns the same `kubeconfig` / `api_endpoint` / `server_public_ips` outputs.
 ## What it does
 - `control_plane_ip` → installs a k3s **server** (the API server; single-CP topology).
 - each `agent_ips[*]` → installs a k3s **agent** that joins the server.
-- fetches + rewrites the kubeconfig to the control-plane public IP.
+- fetches + rewrites the kubeconfig to the control-plane public IP (mode 0600).
+- reruns agent installation when its rendered configuration or pinned version changes.
+- stops an agent join after five minutes if the control-plane API is unreachable.
+- uploads the token-bearing installer into a root-only directory and removes it
+  after execution. Node configuration remains root-readable; OpenTofu state must
+  also be protected because it contains the cluster token.
 
 ## What it deliberately does NOT do (vs the Hetzner module)
 | Hetzner gave it | Here |

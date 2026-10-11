@@ -19,6 +19,13 @@ platform-template (this factory) ──copier render──▶  <you>/<client>-pl
 ---
 
 ## 1. Render your platform repo
+For an existing containerized application, start with the
+[Factory CLI workflow](CLI.md): `factory doctor`, then `factory onboard`. It
+generates the platform, app delivery workflows, a secrets checklist and separate
+staging/production roots from one specification. Follow its publication,
+connection and bootstrap steps together; the direct Copier path below is the
+manual alternative and does not generate the CLI's environment roots.
+
 Install copier and render an instance, answering the questionnaire (this is where it becomes
 *yours* — `client_name`, `domain`, `registry_org` = **your** GitHub org, `cloud`, capabilities):
 
@@ -31,7 +38,7 @@ copier copy --trust gh:buildwithamaku/platform-template <client>-platform
 `--trust` is required because the template runs copier tasks. Then push it to **your** org:
 
 ```bash
-cd <client>-platform && git init && git add -A && git commit -m "init from platform-template"
+cd <client>-platform && git init --initial-branch=main && git add -A && git commit -m "init from platform-template"
 gh repo create <your-org>/<client>-platform --private --source=. --push
 ```
 
@@ -56,12 +63,13 @@ see `docs/TESTING-baremetal.md` and the module README.)
 Three things wire your code to the platform:
 
 ### (a) Your app ships a Dockerfile
-Container images only — no buildpacks. The image must run as a **numeric non-root USER**. The full
+Container images only — no buildpacks. The container must run under a **numeric non-root UID**, supplied by the image or the service's `run_as_user` configuration. The full
 6-point contract is `docs/APP-CONTRACT.md` in your rendered repo (Dockerfile · numeric non-root USER
 · `$PORT` · liveness+readiness endpoints · config from env · no boot-time migrations).
 
 ### (b) A thin caller workflow in the app repo
-Add `.github/workflows/deliver.yml` to your **app** repo. Ready-to-paste variants are in this
+The CLI can prepare this change with `factory connect` (see [CLI workflow](CLI.md)).
+For manual setup, add `.github/workflows/deliver.yml` to your **app** repo. Ready-to-paste variants are in this
 factory under [`examples/app-ci/`](../examples/app-ci):
 - `deliver-node-polyrepo.yml` — a Node app in its own repo
 - `deliver-go-polyrepo.yml` — a Go app in its own repo

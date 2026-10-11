@@ -1,3 +1,4 @@
+[% set config = service_config.get("backend", {}) %]
 # cap_single_writer — the single-writer worker. An in-process scheduler (e.g.
 # @nestjs/schedule) fires on EVERY replica, so a @Cron running on the 2-replica
 # web Deployment double-fires — for a money/PII app that means double payouts,
@@ -40,15 +41,18 @@ spec:
       imagePullSecrets:
         - name: ghcr-pull
       securityContext:
-        runAsNonRoot: true # numeric non-root USER in the image (APP-CONTRACT); factory pins no uid
+        runAsNonRoot: true # numeric UID comes from the image or explicit run_as_user configuration
+[% if config.get("run_as_user") %]
+        runAsUser: [< config.run_as_user >]
+[% endif %]
       containers:
         - name: worker
           image: ghcr.io/[< registry_org >]/[< client_name >]-backend
           ports:
-            - { containerPort: 8080, name: http }
+            - { containerPort: [< config.get("port", 8080) >], name: http }
           env:
             - name: PORT
-              value: "8080"
+              value: [< config.get("port", 8080) | string | tojson >]
             - name: SCHEDULER_ENABLED # this is the one place the scheduler runs
               value: "true"
             - name: DATABASE_URL
@@ -58,12 +62,28 @@ spec:
                   key: uri
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: http://otel-collector-opentelemetry-collector.monitoring:4318
+[% for name, value in config.get("env", {}).items() %]
+            - name: [< name | tojson >]
+              value: [< value | tojson >]
+[% endfor %]
+[% for name, key in config.get("db_env", {}).items() %]
+            - name: [< name | tojson >]
+              valueFrom:
+                secretKeyRef:
+                  name: [% if cap_db_app_role %][< client_name >]-db-app-rw[% else %][< client_name >]-db-app[% endif %]
+                  key: [< key | tojson >]
+[% endfor %]
+[% if config.get("secrets") %]
+          envFrom:
+            - secretRef:
+                name: backend-config
+[% endif %]
           readinessProbe:
-            httpGet: { path: [< backend_ready_path >], port: http }
+            httpGet: { path: [< config.get("ready_path", backend_ready_path) | tojson >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
-            httpGet: { path: [< backend_health_path >], port: http }
+            httpGet: { path: [< config.get("health_path", backend_health_path) | tojson >], port: http }
             initialDelaySeconds: 5
             periodSeconds: 15
           resources:

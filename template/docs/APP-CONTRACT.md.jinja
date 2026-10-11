@@ -11,10 +11,14 @@ does. If your app does these, `[< client_name >]` deploys it with no bespoke cha
    passes the service subdir). The platform builds container images only — there is
    no Nixpacks/buildpack fallback. `build-and-bump` fails fast if it's missing.
 
-2. **Run as a NUMERIC non-root `USER`** in the image (e.g. `USER 1000`, not
-   `USER node`). Kubernetes enforces `runAsNonRoot` and can only verify it from a
-   numeric uid. The factory does **not** pin a uid — your image's `USER` wins
-   (distroless `nonroot` = 65532, node-slim = 1000, nginx-unprivileged = 101).
+2. **Run under a numeric non-root UID.** Declare it in the image (e.g.
+   `USER 1000`) or configure `run_as_user` for the service when the image uses a
+   named user such as `USER node`. With the CLI this is
+   `services.<name>.config.run_as_user`; with Copier it is
+   `service_config.<name>.run_as_user`. Kubernetes enforces `runAsNonRoot`.
+   The override applies to the web container, worker and migrations for that
+   service. Choose a UID compatible with the image's file permissions and verify
+   it with `factory doctor --runtime`; without an override the image's UID wins.
 
 3. **Listen on `$PORT`.** The platform injects it (backend 8080, SSR frontend 3000).
    Bind `0.0.0.0`, not `localhost`.

@@ -45,7 +45,8 @@ cloud freebies actually work.
 9. **Reconcile**: `kubectl -n argocd get applications` → all **Synced/Healthy**; CNPG cluster
    comes up with its PVC bound on local-path; valkey, loki, cert-manager, external-dns, tailscale up.
 10. **DNS + TLS**: point `app`/`api` A records at the node IP (or a wildcard); confirm cert-manager
-    issues (LE-staging on staging) and the app URL serves over TLS.
+    issues and the app URL serves over trusted TLS. Use `staging_tls_issuer: letsencrypt-prod`
+    for acceptance; the ACME test issuer produces untrusted certificates and cannot pass `factory verify`.
 11. **App acceptance**: deploy the reference/test backend → PreSync migration runs, pod Ready,
     ingress serves; if `same_origin_api`, confirm `app.<domain>/api` reaches the backend; if
     `cap_db_app_role`, confirm a runtime write works under RLS.

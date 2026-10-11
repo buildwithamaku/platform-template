@@ -5,7 +5,10 @@ resources:
   - service.yaml
   - servicemonitor.yaml
   - prometheusrule.yaml
+[% if service_config.get("backend", {}).get("migration", {}).get("enabled", true) %]
   - migration-job.yaml
+[% endif %]
+
 [% if cap_single_writer %]
   - worker-deployment.yaml # single-writer scheduler (cap_single_writer)
 [% endif %]

@@ -1,0 +1,27 @@
+# Frontend-only render fixture: no backend, E2E hooks, or database.
+client_name: dashkit
+domain: dashkit.example
+registry_org: dashkit-io
+platform_repo: dashkit-platform
+acme_email: ops@dashkit.example
+cloud: hetzner
+region: nbg1
+staging_node_type: cpx22
+prod_node_type: cpx32
+prod_node_count: 3
+gpu: false
+r2_account_id: 0000000000000000000000000000beef
+repo_layout: polyrepo
+app_backend: false
+app_frontend: true
+frontend_type: static
+app_metabase: false
+cap_preview_envs: false
+cap_service_mesh: false
+cap_event_bus: false
+cap_vector_db: false
+cap_model_serving: false
+vpn: tailscale
+idp: google
+db_source: cnpg
+prod_profile: false

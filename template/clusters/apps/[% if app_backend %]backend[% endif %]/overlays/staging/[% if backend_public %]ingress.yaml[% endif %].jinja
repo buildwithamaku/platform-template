@@ -1,5 +1,5 @@
-# backend_public — staging backend ingress. LE STAGING issuer (untrusted cert, no
-# rate limits). external-dns creates the DNS record from host. Served at
+# backend_public — staging backend ingress uses the configured staging issuer.
+# external-dns creates the DNS record from host. Served at
 # api.staging.[< domain >]; a browser frontend points NEXT_PUBLIC_API_URL here.
 # Lives in the `data` namespace alongside the backend Deployment/Service.
 apiVersion: networking.k8s.io/v1
@@ -8,7 +8,7 @@ metadata:
   name: backend
   namespace: data
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: [< staging_tls_issuer >]
 spec:
   ingressClassName: nginx
   tls:

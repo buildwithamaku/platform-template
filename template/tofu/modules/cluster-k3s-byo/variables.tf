@@ -24,7 +24,11 @@ variable "agent_ips" {
 variable "ssh_user" {
   type        = string
   default     = "root"
-  description = "SSH user with root (the install runs apt-get + the k3s installer)."
+  description = "Root SSH account; sudo-based installation is not supported."
+  validation {
+    condition     = var.ssh_user == "root"
+    error_message = "BYO installation currently requires ssh_user = root."
+  }
 }
 
 variable "ssh_private_key_path" {

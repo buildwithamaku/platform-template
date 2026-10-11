@@ -1,4 +1,4 @@
-# Staging frontend ingress. LE STAGING issuer (untrusted cert, no rate limits).
+# Staging frontend ingress. Uses the configured staging certificate issuer.
 # external-dns creates the DNS record from host. Served at app.staging.[< domain >].
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -6,7 +6,7 @@ metadata:
   name: frontend
   namespace: frontend
   annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-staging
+    cert-manager.io/cluster-issuer: [< staging_tls_issuer >]
 spec:
   ingressClassName: nginx
   tls:

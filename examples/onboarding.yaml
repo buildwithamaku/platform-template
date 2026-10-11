@@ -1,0 +1,46 @@
+# Local checkouts are resolved relative to this file. No credential values here.
+version: 1
+answers:
+  client_name: demo
+  domain: example.com
+  acme_email: ops@example.com
+  registry_org: example-org
+  platform_repo: demo-platform
+  cloud: baremetal
+  infisical_project_slug: your-infisical-project-slug
+  app_metabase: false
+  frontend_type: ssr
+  same_origin_api: true
+  cap_db_app_role: true
+  cap_preview_envs: false
+  r2_account_id: "00000000000000000000000000000000"
+services:
+  backend:
+    repo: example-org/api
+    checkout: ../../api
+    context: .
+    language: node
+    config:
+      port: 8080
+      health_path: /healthz
+      ready_path: /readyz
+      env:
+        DB_MIGRATIONS_RUN: "false"
+      db_env:
+        DB_HOST: host
+        DB_PORT: port
+        DB_USERNAME: username
+        DB_PASSWORD: password
+        DB_DATABASE: dbname
+      secrets:
+        JWT_SECRET: BACKEND_JWT_SECRET
+      required_env: [DATABASE_URL, JWT_SECRET]
+      migration:
+        enabled: true
+        command: [npm]
+        args: [run, migration:run]
+  frontend:
+    repo: example-org/web
+    checkout: ../../web
+    context: .
+    language: node

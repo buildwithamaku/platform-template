@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install --quiet copier
+      - run: pip install --quiet -e .
 
       - name: Render both cloud variants + the caps-on fixture
         run: |
@@ -45,6 +45,9 @@ jobs:
           copier copy --data-file examples/baremetal.copier-answers.yml --defaults --trust \
             --vcs-ref HEAD . /tmp/render-byo        # baremetal (cluster-k3s-byo, bring-your-own-nodes)
 
+          copier copy --data-file examples/frontend-only.copier-answers.yml --defaults --trust \
+            --vcs-ref HEAD . /tmp/render-frontend-only # no backend or database resources
+
       - name: No stale copier vars (both renders)
         # Catches a half-converted template file (a {{ }} left after the [< >]
         # switch) — invisible to kubeconform (valid YAML / inside a shell script).
@@ -54,7 +57,7 @@ jobs:
         run: |
           vars=$(grep -E '^[a-z][a-zA-Z0-9_]*:' copier.yml | sed 's/:.*//' | paste -sd '|' -)
           echo "guarding: $vars"
-          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do /tmp/render-caps /tmp/render-fe /tmp/render-byo; then
+          if grep -rnE "\{\{ *($vars)" /tmp/render /tmp/render-do /tmp/render-caps /tmp/render-fe /tmp/render-byo /tmp/render-frontend-only; then
             echo "::error::stale {{ copier-var }} in a render — a template file was not converted to [< >]"; exit 1
           fi
           echo "no stale copier vars ✓"
@@ -77,22 +80,26 @@ jobs:
           done
 
       - name: Install kubeconform + kustomize (pinned)
+        shell: bash
         run: |
-          curl -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
+          curl --retry 3 -sSfL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz | tar -xz kubeconform
           sudo install kubeconform /usr/local/bin/
-          curl -sSfL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.3
+          curl --retry 3 -sSfL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.3/kustomize_v5.4.3_linux_amd64.tar.gz" | tar -xz kustomize
           sudo mv kustomize /usr/local/bin/
+
+      - name: Factory CLI and generated environment integration tests
+        run: python -m unittest discover -s tests -v
 
       - name: kubeconform rendered manifests (caps-off + caps-on + frontend-static + baremetal)
         run: |
-          for d in /tmp/render /tmp/render-caps /tmp/render-fe /tmp/render-byo; do
+          for d in /tmp/render /tmp/render-caps /tmp/render-fe /tmp/render-byo /tmp/render-frontend-only; do
             kubeconform -strict -summary -kubernetes-version 1.31.4 -ignore-missing-schemas \
               -schema-location default -schema-location "$SCHEMA" "$d/clusters"
           done
 
       - name: kubeconform rendered kustomize overlays (caps-off + caps-on + frontend-static)
         run: |
-          for base in /tmp/render /tmp/render-caps /tmp/render-fe; do
+          for base in /tmp/render /tmp/render-caps /tmp/render-fe /tmp/render-frontend-only; do
             # overlays/* are the deployable app targets; preview/base is referenced
             # directly by the cap_preview_envs ApplicationSet (no overlay), so build
             # it too or a broken resources: ref there rots silently.
