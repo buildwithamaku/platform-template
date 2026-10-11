@@ -32,6 +32,12 @@ class SpecTests(unittest.TestCase):
         validate_config("backend", {"required_env": ["SCHEDULER_ENABLED"]}, single_writer=True)
         validate_config("frontend", {"required_env": ["HOSTNAME"]}, frontend_type="ssr")
 
+    def test_runtime_user_override_rejects_root_and_non_numeric_values(self):
+        for value in (0, -1, True, "node"):
+            with self.assertRaisesRegex(SpecError, "positive numeric UID"):
+                validate_config("frontend", {"run_as_user": value})
+        validate_config("frontend", {"run_as_user": 1000})
+
     def test_context_cannot_escape_checkout(self):
         with self.assertRaisesRegex(SpecError, "escapes"):
             read_spec(self.spec("../elsewhere"))
@@ -81,6 +87,15 @@ class SpecTests(unittest.TestCase):
         daemon.assert_called_once()
         build.assert_not_called()
         self.assertTrue(any(c["check"] == "backend.image-build" and c["status"] == "unverified" for c in checks))
+
+    def test_internal_network_is_rejected_before_building(self):
+        (self.root / "app" / "Dockerfile").write_text("FROM scratch\nUSER 1000\n")
+        with patch("factory_cli.cli.docker", side_effect=["28.0.1", "bridge true"]), \
+             patch("factory_cli.cli.check_service") as build:
+            checks = doctor(read_spec(self.spec()), runtime=True, network="isolated")
+        self.assertEqual(checks[1]["check"], "docker.network")
+        self.assertEqual(checks[1]["status"], "failed")
+        build.assert_not_called()
 
     def test_container_delivery_is_runtime_agnostic(self):
         answers = {"registry_org": "example", "platform_repo": "platform", "client_name": "demo"}

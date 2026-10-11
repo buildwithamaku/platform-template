@@ -56,12 +56,13 @@ see `docs/TESTING-baremetal.md` and the module README.)
 Three things wire your code to the platform:
 
 ### (a) Your app ships a Dockerfile
-Container images only — no buildpacks. The image must run as a **numeric non-root USER**. The full
+Container images only — no buildpacks. The container must run under a **numeric non-root UID**, supplied by the image or the service's `run_as_user` configuration. The full
 6-point contract is `docs/APP-CONTRACT.md` in your rendered repo (Dockerfile · numeric non-root USER
 · `$PORT` · liveness+readiness endpoints · config from env · no boot-time migrations).
 
 ### (b) A thin caller workflow in the app repo
-Add `.github/workflows/deliver.yml` to your **app** repo. Ready-to-paste variants are in this
+The CLI can prepare this change with `factory connect` (see [CLI workflow](CLI.md)).
+For manual setup, add `.github/workflows/deliver.yml` to your **app** repo. Ready-to-paste variants are in this
 factory under [`examples/app-ci/`](../examples/app-ci):
 - `deliver-node-polyrepo.yml` — a Node app in its own repo
 - `deliver-go-polyrepo.yml` — a Go app in its own repo

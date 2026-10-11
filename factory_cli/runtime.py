@@ -59,10 +59,14 @@ def check_service(name, service, *, env_file=None, migration_env_file=None,
         record(stage, "verified", "Docker build succeeded locally; image not pushed.")
         stage = "non-root-user"
         info = json.loads(docker("image", "inspect", image))[0]
-        if not numeric_nonroot(info["Config"].get("User", "")):
-            record(stage, "failed", "Built image must declare a numeric nonzero USER.")
+        uid = config.get("run_as_user")
+        if uid is not None and (type(uid) is not int or uid <= 0):
+            record(stage, "failed", "Configured runtime UID must be a positive integer.")
             return checks
-        record(stage, "verified", "Built image declares a numeric nonzero USER.")
+        if uid is None and not numeric_nonroot(info["Config"].get("User", "")):
+            record(stage, "failed", "Image needs a numeric nonzero USER or an explicit run_as_user override.")
+            return checks
+        record(stage, "verified", "Configured numeric nonzero UID will be enforced." if uid else "Built image declares a numeric nonzero USER.")
         migration = config.get("migration", {})
         if name == "backend" and migration.get("enabled", True):
             stage = "migration"
@@ -76,6 +80,8 @@ def check_service(name, service, *, env_file=None, migration_env_file=None,
                 containers.append(migration_id)
                 command = migration.get("command", [])
                 args = ["run", "--name", migration_id]
+                if uid is not None:
+                    args += ["--user", str(uid)]
                 args += env_args(migration.get("env", {}), migration_env_file)
                 if command:
                     args += ["--entrypoint", command[0]]
@@ -89,6 +95,8 @@ def check_service(name, service, *, env_file=None, migration_env_file=None,
         if name == "frontend":
             values.update(HOSTNAME="0.0.0.0", NODE_ENV="production")
         args = ["run", "--detach", "--name", ident, "--publish", f"127.0.0.1::{port}"]
+        if uid is not None:
+            args += ["--user", str(uid)]
         args += env_args(values, env_file)
         args += [image]
         docker(*args)

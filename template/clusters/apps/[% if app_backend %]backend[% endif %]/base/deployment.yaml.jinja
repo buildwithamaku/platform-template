@@ -33,8 +33,10 @@ spec:
       imagePullSecrets:
         - name: ghcr-pull
       securityContext:
-        runAsNonRoot: true # the app image MUST declare a NUMERIC non-root USER (APP-CONTRACT);
-        # the factory does not pin a uid — the image's USER wins (distroless=65532, node-slim=1000, ...).
+        runAsNonRoot: true # numeric UID comes from the image or explicit run_as_user configuration
+[% if config.get("run_as_user") %]
+        runAsUser: [< config.run_as_user >]
+[% endif %]
       containers:
         - name: backend
           image: ghcr.io/[< registry_org >]/[< client_name >]-backend

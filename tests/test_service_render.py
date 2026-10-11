@@ -35,13 +35,13 @@ class ServiceRender(unittest.TestCase):
             answers = yaml.safe_load((root / "examples/all-caps.copier-answers.yml").read_text())
             answers["service_config"] = {
                 "backend": {
-                    "port": 9090, "health_path": "/alive", "ready_path": "/ready",
+                    "port": 9090, "run_as_user": 2000, "health_path": "/alive", "ready_path": "/ready",
                     "env": {"DB_MIGRATIONS_RUN": "false"},
                     "secrets": {"JWT_SECRET": "PAYROLL_JWT"},
                     "db_env": {"DB_USERNAME": "username", "DB_PASSWORD": "password"},
                     "migration": {"command": ["npm"], "args": ["run", "migration:run"],
                                   "secrets": {"MIGRATION_KEY": "MIGRATION_KEY"}}},
-                "frontend": {"port": 3333, "health_path": "/web-live", "ready_path": "/web-ready", "env": {"SERVER_LABEL": "production: #quoted"},
+                "frontend": {"port": 3333, "run_as_user": 1000, "health_path": "/web-live", "ready_path": "/web-ready", "env": {"SERVER_LABEL": "production: #quoted"},
                              "secrets": {"SESSION_KEY": "SESSION_KEY"}}}
             path = tmp / "answers.yml"
             path.write_text(yaml.safe_dump(answers))
@@ -76,6 +76,11 @@ class ServiceRender(unittest.TestCase):
                         for container in doc["spec"]["template"]["spec"]["containers"]:
                             if container["image"].startswith(image):
                                 self.assertEqual(container["image"], f"{image}@{digest}")
+            for file, uid in (("backend/base/deployment.yaml", 2000),
+                              ("backend/base/worker-deployment.yaml", 2000),
+                              ("backend/base/migration-job.yaml", 2000),
+                              ("frontend/base/deployment.yaml", 1000)):
+                self.assertEqual(read("clusters/apps/" + file)["spec"]["template"]["spec"]["securityContext"]["runAsUser"], uid)
             backend = read("clusters/apps/backend/base/deployment.yaml")["spec"]["template"]["spec"]["containers"][0]
             env = {e["name"]: e for e in backend["env"]}
             self.assertEqual(backend["ports"][0]["containerPort"], 9090)

@@ -26,9 +26,11 @@ def validate_config(name, config, migration=False, single_writer=False, frontend
     if not isinstance(config, dict):
         raise SpecError(f"{name}.config must be a mapping")
     allowed = {"env", "secrets", "db_env", "required_env"}
-    allowed |= {"enabled", "command", "args"} if migration else {"port", "health_path", "ready_path", "migration"}
+    allowed |= {"enabled", "command", "args"} if migration else {"port", "health_path", "ready_path", "migration", "run_as_user"}
     if set(config) - allowed:
         raise SpecError(f"{name}: unknown configuration keys: {sorted(set(config) - allowed)}")
+    if "run_as_user" in config and (type(config["run_as_user"]) is not int or not 1 <= config["run_as_user"] <= 2147483647):
+        raise SpecError(f"{name}.run_as_user must be a positive numeric UID")
     port = config.get("port", 8080)
     if type(port) is not int or not 1 <= port <= 65535:
         raise SpecError(f"{name}.port must be an integer from 1 to 65535")
@@ -140,6 +142,16 @@ def doctor(spec, *, runtime=False, env_files=None, migration_env_files=None, net
         except (OSError, subprocess.SubprocessError, ValueError):
             checks.append({"check": "docker.daemon", "status": "failed",
                            "detail": "Docker daemon did not respond within 10 seconds. Start Docker and check the selected Docker context/socket permissions; no builds were attempted."})
+            runtime = False
+    if runtime and network:
+        try:
+            kind = docker("network", "inspect", "--format", "{{.Driver}} {{.Internal}}", network, timeout=10)
+            if kind.strip() != "bridge false":
+                raise ValueError("Unsupported probe network")
+            checks.append({"check": "docker.network", "status": "verified", "detail": "Dedicated bridge network supports loopback port probes."})
+        except (OSError, subprocess.SubprocessError, ValueError):
+            checks.append({"check": "docker.network", "status": "failed",
+                           "detail": "Use an existing non-internal bridge network for local published-port probes. Internal/host networks are unsupported; no builds were attempted."})
             runtime = False
     for name, service in spec["services"].items():
         dockerfile = service["_build"] / "Dockerfile"

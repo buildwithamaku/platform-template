@@ -26,7 +26,8 @@ The output directory must not exist. The bundle contains:
   ExternalSecrets, with consumer filenames, and separate bootstrap/CI credentials.
 - `readiness.json`: explicit outstanding runtime and deployment checks.
 
-Each service's `config` declares `port`, `health_path`, `ready_path`, non-secret
+Each service's `config` declares `port`, `health_path`, `ready_path`, optional
+`run_as_user` (a positive numeric UID), non-secret
 `env` values, `secrets` (environment name → Infisical key), and `required_env`.
 Backend `db_env` maps app variable names to connection-secret keys (host, port,
 dbname, username, password, uri). Runtime uses the non-owner secret when
@@ -57,11 +58,18 @@ factory doctor --spec /path/to/onboarding.yaml --runtime \
   --run-migrations --migration-env-file backend=/private/path/owner.env --json
 ```
 
-This builds images, verifies numeric non-root image USER, and starts disposable
-containers with loopback-only published ports to check HTTP probes. It removes
+This builds images, verifies numeric non-root execution, and starts disposable
+containers with loopback-only published ports to check HTTP probes. Images with
+a named user such as `USER node` can use `config.run_as_user: 1000` when that UID
+is appropriate for the image. The same override is enforced in local container
+checks, Kubernetes deployments, workers, and migration jobs. File permissions
+must support the chosen UID; runtime checks still have to pass. It removes
 its containers and tagged images afterwards. Supply dependency connections in
 the test env files; never point migration tests at production. Migration
-execution is opt-in and requires its own env file. Env file contents and process
+execution is opt-in and requires its own env file. `--network` must name an
+existing non-internal bridge network; host/internal networks do not support
+this published-port probe flow. Use a dedicated disposable network and synthetic
+dependency credentials. Env file contents and process
 logs are not included in reports. Docker build caches may remain.
 
 Passing local probes proves local startup, not Kubernetes secret delivery, RLS

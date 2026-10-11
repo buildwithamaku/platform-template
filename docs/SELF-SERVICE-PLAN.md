@@ -54,6 +54,11 @@ Still requiring implementation or live evidence:
 - BYO install validation is structural only. Live SSH, node networking, local
   storage, ingress, secret delivery, and recovery still require runtime evidence.
 
+Local execution evidence for the independent payroll application is recorded in
+[PAYROLL-LOCAL-VALIDATION.md](PAYROLL-LOCAL-VALIDATION.md). Builds, owner migrations,
+non-root execution, both services' HTTP probes and generated overlays passed.
+This does not replace the required InterServer acceptance run.
+
 ## Required verification
 
 - CLI tests: invalid specs, path traversal, duplicate services, no-clobber output,

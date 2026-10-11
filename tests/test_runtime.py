@@ -49,6 +49,20 @@ class RuntimeTests(unittest.TestCase):
         self.assertEqual([call.args[0] for call in probe.call_args_list],
                          ["http://127.0.0.1:43123/ready", "http://127.0.0.1:43123/live"])
 
+    def test_named_image_user_can_be_overridden_for_runtime_and_migrations(self):
+        self.calls = []
+        def docker(*args, **kwargs):
+            result = self.fake_docker(*args, **kwargs)
+            return json.dumps([{"Config": {"User": "node"}}]) if args[:2] == ("image", "inspect") else result
+        with patch("factory_cli.runtime.docker", side_effect=docker), \
+             patch("factory_cli.runtime.probe", return_value=True):
+            checks = check_service("backend", {"_build": Path("/tmp/app"), "config": {"run_as_user": 1000}},
+                                   migration_env_file=Path("owner.env"), run_migrations=True)
+        self.assertTrue(all(c["status"] == "verified" for c in checks))
+        runs = [args for args in self.calls if args[0] == "run"]
+        self.assertEqual(len(runs), 2)
+        self.assertTrue(all(args[args.index("--user") + 1] == "1000" for args in runs))
+
     def test_docker_error_does_not_disclose_captured_output(self):
         error = subprocess.CalledProcessError(1, ["docker"], stderr="password=SECRET")
         with patch("factory_cli.runtime.docker", side_effect=error):
